@@ -1,36 +1,122 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../utils/app_colors.dart';
+import '../blocs/dashboard_bloc.dart';
+import '../widgets/send_notification_dialog.dart';
 
-class DashboardTab extends StatelessWidget {
-  const DashboardTab({super.key});
+class DashboardTab extends StatefulWidget {
+  final Function(int)? onNavigateToTab;
+  
+  const DashboardTab({super.key, this.onNavigateToTab});
+
+  @override
+  State<DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<DashboardTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Load dashboard data when the tab is initialized
+    context.read<DashboardBloc>().add(LoadDashboardData());
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.background,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Stats Cards Grid
-            _buildStatsGrid(),
-            const SizedBox(height: 24),
-            
-            // Quick Actions Card
-            _buildQuickActionsCard(),
-            const SizedBox(height: 24),
-            
-            // Recent Activity Card
-            _buildRecentActivityCard(),
-            const SizedBox(height: 100), // Extra padding to prevent bottom overflow
-          ],
-        ),
+      child: BlocConsumer<DashboardBloc, DashboardState>(
+        listener: (context, state) {
+          if (state is DashboardError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is DashboardLoading) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (state is DashboardError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Error loading dashboard',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<DashboardBloc>().add(LoadDashboardData());
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (state is DashboardLoaded) {
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<DashboardBloc>().add(RefreshDashboardData());
+              },
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Stats Cards Grid
+                    _buildStatsGrid(state.data),
+                    const SizedBox(height: 24),
+                    
+                    // Quick Actions Card
+                    _buildQuickActionsCard(),
+                    const SizedBox(height: 24),
+                    
+                    // Recent Activity Card
+                    _buildRecentActivityCard(state.data),
+                    const SizedBox(height: 100), // Extra padding to prevent bottom overflow
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return const Center(
+            child: Text('Loading dashboard...'),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(DashboardData data) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -41,7 +127,7 @@ class DashboardTab extends StatelessWidget {
       children: [
         _buildStatCard(
           title: 'Total Users',
-          value: '12,458',
+          value: _formatNumber(data.totalUsers),
           badge: '+12%',
           badgeColor: AppColors.badgeGreen,
           badgeTextColor: AppColors.badgeGreenText,
@@ -49,23 +135,23 @@ class DashboardTab extends StatelessWidget {
         ),
         _buildStatCard(
           title: 'Pending Posts',
-          value: '47',
-          badge: '+5',
+          value: data.pendingPosts.toString(),
+          badge: '+${data.pendingPosts}',
           badgeColor: AppColors.badgeGreen,
           badgeTextColor: AppColors.badgeGreenText,
           iconPath: 'assets/images/stat_card_icon_2.png',
         ),
         _buildStatCard(
           title: 'Active Sessions',
-          value: '8',
-          badge: '2',
+          value: data.activeSessions.toString(),
+          badge: '${data.activeSessions}',
           badgeColor: AppColors.badgeGray,
           badgeTextColor: AppColors.badgeGrayText,
           iconPath: 'assets/images/stat_card_icon_3.png',
         ),
         _buildStatCard(
           title: 'Transactions',
-          value: '₹45.2K',
+          value: '₹${_formatAmount(data.totalTransactionVolume)}',
           badge: '+8%',
           badgeColor: AppColors.badgeGreen,
           badgeTextColor: AppColors.badgeGreenText,
@@ -223,22 +309,37 @@ class DashboardTab extends StatelessWidget {
               _buildQuickActionButton(
                 label: 'Sessions',
                 iconPath: 'assets/images/quick_action_sessions.png',
-                onTap: () {},
+                onTap: () {
+                  // Navigate to Users tab to see active sessions
+                  widget.onNavigateToTab?.call(1);
+                },
               ),
               _buildQuickActionButton(
                 label: 'Approve Users',
                 iconPath: 'assets/images/quick_action_approve.png',
-                onTap: () {},
+                onTap: () {
+                  // Navigate to Users tab
+                  widget.onNavigateToTab?.call(1);
+                },
               ),
               _buildQuickActionButton(
                 label: 'Review Posts',
                 iconPath: 'assets/images/quick_action_review.png',
-                onTap: () {},
+                onTap: () {
+                  // Navigate to Posts tab
+                  widget.onNavigateToTab?.call(2);
+                },
               ),
               _buildQuickActionButton(
                 label: 'Send Notice',
                 iconPath: 'assets/images/quick_action_notice.png',
-                onTap: () {},
+                onTap: () {
+                  // Open send notification dialog
+                  showDialog(
+                    context: context,
+                    builder: (context) => const SendNotificationDialog(),
+                  );
+                },
               ),
             ],
           ),
@@ -299,7 +400,7 @@ class DashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentActivityCard() {
+  Widget _buildRecentActivityCard(DashboardData data) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -325,37 +426,16 @@ class DashboardTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          _buildActivityItem(
-            iconPath: 'assets/images/activity_icon_1.png',
-            iconBgColor: AppColors.activityYellow,
-            title: 'New user registration',
-            subtitle: 'Priya Sharma',
-            time: '2 min ago',
-          ),
-          const SizedBox(height: 12),
-          _buildActivityItem(
-            iconPath: 'assets/images/activity_icon_2.png',
-            iconBgColor: AppColors.activityYellow,
-            title: 'Post submitted for review',
-            subtitle: 'Merchant: Coffee House',
-            time: '15 min ago',
-          ),
-          const SizedBox(height: 12),
-          _buildActivityItem(
-            iconPath: 'assets/images/activity_icon_3.png',
-            iconBgColor: AppColors.activityRed,
-            title: 'Payment dispute raised',
-            subtitle: 'Transaction #4529',
-            time: '1 hour ago',
-          ),
-          const SizedBox(height: 12),
-          _buildActivityItem(
-            iconPath: 'assets/images/activity_icon_4.png',
-            iconBgColor: AppColors.activityGreen,
-            title: 'Merchant approved',
-            subtitle: 'Green Grocers Ltd',
-            time: '2 hours ago',
-          ),
+          ...data.recentActivities.map((activity) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildActivityItem(
+              iconPath: activity.iconPath,
+              iconBgColor: _getActivityColor(activity.iconBgColor),
+              title: activity.title,
+              subtitle: activity.subtitle,
+              time: activity.time,
+            ),
+          )),
         ],
       ),
     );
@@ -430,5 +510,32 @@ class DashboardTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
+  }
+
+  String _formatAmount(double amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
+    }
+    return amount.toStringAsFixed(0);
+  }
+
+  Color _getActivityColor(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'yellow':
+        return AppColors.activityYellow;
+      case 'red':
+        return AppColors.activityRed;
+      case 'green':
+        return AppColors.activityGreen;
+      default:
+        return AppColors.activityYellow;
+    }
   }
 }

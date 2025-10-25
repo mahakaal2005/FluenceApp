@@ -11,6 +11,8 @@ class Transaction extends Equatable {
   final String status;
   final String description;
   final DateTime createdAt;
+  final String? campaignId;
+  final Map<String, dynamic>? metadata;
 
   const Transaction({
     required this.id,
@@ -19,6 +21,8 @@ class Transaction extends Equatable {
     required this.status,
     required this.description,
     required this.createdAt,
+    this.campaignId,
+    this.metadata,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>
@@ -27,5 +31,38 @@ class Transaction extends Equatable {
   Map<String, dynamic> toJson() => _$TransactionToJson(this);
 
   @override
-  List<Object?> get props => [id, amount, type, status, description, createdAt];
+  List<Object?> get props => [id, amount, type, status, description, createdAt, campaignId, metadata];
+
+  // Helper getters for UI
+  String get businessName => metadata?['storeName'] ?? 'Unknown Business';
+  DateTime? get settlementDate {
+    if (status == 'completed') {
+      return createdAt.add(const Duration(days: 2));
+    }
+    return null;
+  }
+  String? get failureReason => metadata?['failureReason'];
+  
+  TransactionStatus get transactionStatus {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'processed': // Backend uses 'processed' for successful transactions
+        return TransactionStatus.success;
+      case 'pending':
+        return TransactionStatus.pending;
+      case 'disputed':
+        return TransactionStatus.disputed;
+      case 'failed':
+        return TransactionStatus.failed;
+      default:
+        return TransactionStatus.pending;
+    }
+  }
+}
+
+enum TransactionStatus {
+  success,
+  pending,
+  disputed,
+  failed,
 }

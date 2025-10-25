@@ -15,16 +15,41 @@ enum ServiceType {
 
 /// API Service for handling HTTP requests to multiple microservices
 class ApiService {
-  // Microservice URLs
-  static const Map<ServiceType, String> _serviceUrls = {
-    ServiceType.auth: 'http://localhost:4001',
-    ServiceType.cashback: 'http://localhost:4002',
-    ServiceType.merchant: 'http://localhost:4003',
-    ServiceType.notification: 'http://localhost:4004',
-    ServiceType.points: 'http://localhost:4005',
-    ServiceType.referral: 'http://localhost:4006',
-    ServiceType.social: 'http://localhost:4007',
+  // ============================================
+  // 🚀 PRODUCTION DEPLOYMENT CONFIGURATION
+  // ============================================
+  // TO DEPLOY TO PRODUCTION:
+  // 1. Change BASE_URL below to your production server IP or domain
+  // 2. Rebuild the app: flutter build apk --release (Android) or flutter build ios --release (iOS)
+  // 3. That's it! All microservices will automatically use the new URL
+  //
+  // EXAMPLES:
+  // Development (Local):     'http://192.168.0.180'
+  // Development (Emulator):  'http://10.0.2.2'
+  // Staging Server:          'http://staging.fluencepay.com'
+  // Production Server:       'https://api.fluencepay.com'
+  //
+  // NOTE: Do NOT include port numbers or trailing slashes in BASE_URL
+  // ============================================
+  
+  static const String BASE_URL = 'http://192.168.0.180'; // 👈 CHANGE THIS FOR PRODUCTION
+  
+  // Service ports (these remain constant across all environments)
+  static const Map<ServiceType, int> _servicePorts = {
+    ServiceType.auth: 4001,
+    ServiceType.cashback: 4002,
+    ServiceType.merchant: 4003,
+    ServiceType.notification: 4004,
+    ServiceType.points: 4005,
+    ServiceType.referral: 4006,
+    ServiceType.social: 4007,
   };
+  
+  /// Get the full URL for a specific service
+  static String _getServiceUrl(ServiceType service) {
+    final port = _servicePorts[service]!;
+    return '$BASE_URL:$port';
+  }
   
   final http.Client _client;
   final StorageService _storageService;
@@ -41,16 +66,30 @@ class ApiService {
     required ServiceType service,
   }) async {
     try {
-      final baseUrl = _serviceUrls[service]!;
+      final baseUrl = _getServiceUrl(service);
+      final fullUrl = '$baseUrl/$endpoint';
+      
+      print('🌐 [API] GET Request');
+      print('   URL: $fullUrl');
+      print('   Service: $service');
+      
       final headers = await _getHeaders();
+      print('   Headers: ${headers.keys.toList()}');
       
       final response = await _client.get(
-        Uri.parse('$baseUrl/$endpoint'),
+        Uri.parse(fullUrl),
         headers: headers,
       ).timeout(const Duration(seconds: 30));
       
+      print('✅ [API] Response received');
+      print('   Status: ${response.statusCode}');
+      print('   Body length: ${response.body.length}');
+      print('   Body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      
       return _handleResponse(response);
     } catch (e) {
+      print('❌ [API] GET Request failed: $e');
+      print('   Error type: ${e.runtimeType}');
       throw _handleError(e);
     }
   }
@@ -62,17 +101,30 @@ class ApiService {
     required ServiceType service,
   }) async {
     try {
-      final baseUrl = _serviceUrls[service]!;
+      final baseUrl = _getServiceUrl(service);
+      final fullUrl = '$baseUrl/$endpoint';
+      
+      print('🌐 [API] POST Request');
+      print('   URL: $fullUrl');
+      print('   Service: $service');
+      
       final headers = await _getHeaders();
+      print('   Headers: ${headers.keys.toList()}');
       
       final response = await _client.post(
-        Uri.parse('$baseUrl/$endpoint'),
+        Uri.parse(fullUrl),
         headers: headers,
         body: jsonEncode(data),
       ).timeout(const Duration(seconds: 30));
       
+      print('✅ [API] Response received');
+      print('   Status: ${response.statusCode}');
+      print('   Body length: ${response.body.length}');
+      
       return _handleResponse(response);
     } catch (e) {
+      print('❌ [API] Request failed: $e');
+      print('   Error type: ${e.runtimeType}');
       throw _handleError(e);
     }
   }
@@ -84,7 +136,7 @@ class ApiService {
     required ServiceType service,
   }) async {
     try {
-      final baseUrl = _serviceUrls[service]!;
+      final baseUrl = _getServiceUrl(service);
       final headers = await _getHeaders();
       
       final response = await _client.put(
@@ -105,7 +157,7 @@ class ApiService {
     required ServiceType service,
   }) async {
     try {
-      final baseUrl = _serviceUrls[service]!;
+      final baseUrl = _getServiceUrl(service);
       final headers = await _getHeaders();
       
       final response = await _client.delete(
@@ -176,11 +228,17 @@ class ApiService {
         );
         
       case 404:
-        // Not found
-        throw NotFoundException(
-          'Resource not found.',
-          statusCode: 404,
-        );
+        // Not found - could be endpoint doesn't exist yet
+        String message = 'Endpoint not found';
+        try {
+          final body = jsonDecode(response.body);
+          if (body['error'] != null) {
+            message = body['error'];
+          } else if (body['message'] != null) {
+            message = body['message'];
+          }
+        } catch (_) {}
+        throw NotFoundException(message, statusCode: 404);
         
       case 422:
         // Validation error
@@ -259,8 +317,7 @@ class ApiException implements Exception {
 
 /// Unauthorized Exception (401)
 class UnauthorizedException extends ApiException {
-  UnauthorizedException(String message, {int? statusCode})
-      : super(message, statusCode: statusCode);
+  UnauthorizedException(super.message, {super.statusCode});
   
   @override
   String toString() => 'UnauthorizedException: $message';
@@ -268,8 +325,7 @@ class UnauthorizedException extends ApiException {
 
 /// Forbidden Exception (403)
 class ForbiddenException extends ApiException {
-  ForbiddenException(String message, {int? statusCode})
-      : super(message, statusCode: statusCode);
+  ForbiddenException(super.message, {super.statusCode});
   
   @override
   String toString() => 'ForbiddenException: $message';
@@ -277,8 +333,7 @@ class ForbiddenException extends ApiException {
 
 /// Not Found Exception (404)
 class NotFoundException extends ApiException {
-  NotFoundException(String message, {int? statusCode})
-      : super(message, statusCode: statusCode);
+  NotFoundException(super.message, {super.statusCode});
   
   @override
   String toString() => 'NotFoundException: $message';
@@ -286,8 +341,7 @@ class NotFoundException extends ApiException {
 
 /// Validation Exception (422)
 class ValidationException extends ApiException {
-  ValidationException(String message, {int? statusCode})
-      : super(message, statusCode: statusCode);
+  ValidationException(super.message, {super.statusCode});
   
   @override
   String toString() => 'ValidationException: $message';
@@ -295,8 +349,7 @@ class ValidationException extends ApiException {
 
 /// Server Exception (500+)
 class ServerException extends ApiException {
-  ServerException(String message, {int? statusCode})
-      : super(message, statusCode: statusCode);
+  ServerException(super.message, {super.statusCode});
   
   @override
   String toString() => 'ServerException: $message';
@@ -304,7 +357,7 @@ class ServerException extends ApiException {
 
 /// Network Exception (connection issues)
 class NetworkException extends ApiException {
-  NetworkException(String message) : super(message);
+  NetworkException(super.message);
   
   @override
   String toString() => 'NetworkException: $message';

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/transaction.dart';
 import '../utils/app_colors.dart';
 import '../widgets/manage_dispute_dialog.dart';
+import '../blocs/transactions_bloc.dart';
 
 class PaymentsTab extends StatefulWidget {
   const PaymentsTab({super.key});
@@ -22,90 +24,17 @@ class _PaymentsTabState extends State<PaymentsTab> {
     'Failed',
   ];
 
-  // Mock transaction data
-  final List<Transaction> _transactions = [
-    Transaction(
-      id: 'TXN4529',
-      businessName: 'Coffee House Mumbai',
-      amount: 2450,
-      date: DateTime(2025, 10, 17),
-      status: TransactionStatus.disputed,
-    ),
-    Transaction(
-      id: 'TXN4528',
-      businessName: 'Green Grocers Ltd',
-      amount: 5680,
-      date: DateTime(2025, 10, 17),
-      status: TransactionStatus.success,
-      settlementDate: DateTime(2025, 10, 19),
-    ),
-    Transaction(
-      id: 'TXN4527',
-      businessName: 'Fitness First Gym',
-      amount: 12000,
-      date: DateTime(2025, 10, 16),
-      status: TransactionStatus.pending,
-      settlementDate: DateTime(2025, 10, 20),
-    ),
-    Transaction(
-      id: 'TXN4526',
-      businessName: 'Bookworm Cafe',
-      amount: 890,
-      date: DateTime(2025, 10, 16),
-      status: TransactionStatus.failed,
-      failureReason: 'Insufficient funds',
-    ),
-    Transaction(
-      id: 'TXN4525',
-      businessName: 'Tech Store',
-      amount: 45000,
-      date: DateTime(2025, 10, 15),
-      status: TransactionStatus.success,
-      settlementDate: DateTime(2025, 10, 17),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Load transactions when the tab is initialized
+    context.read<TransactionsBloc>().add(const LoadTransactions());
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  List<Transaction> get _filteredTransactions {
-    List<Transaction> filtered = _transactions;
-
-    // Apply status filter
-    if (_selectedFilter != 'All Transactions') {
-      TransactionStatus? filterStatus;
-      switch (_selectedFilter) {
-        case 'Success':
-          filterStatus = TransactionStatus.success;
-          break;
-        case 'Pending':
-          filterStatus = TransactionStatus.pending;
-          break;
-        case 'Disputed':
-          filterStatus = TransactionStatus.disputed;
-          break;
-        case 'Failed':
-          filterStatus = TransactionStatus.failed;
-          break;
-      }
-      if (filterStatus != null) {
-        filtered = filtered.where((t) => t.status == filterStatus).toList();
-      }
-    }
-
-    // Apply search filter
-    if (_searchController.text.isNotEmpty) {
-      final searchQuery = _searchController.text.toLowerCase();
-      filtered = filtered.where((t) {
-        return t.businessName.toLowerCase().contains(searchQuery) ||
-               t.id.toLowerCase().contains(searchQuery);
-      }).toList();
-    }
-
-    return filtered;
   }
 
   @override
@@ -128,27 +57,47 @@ class _PaymentsTabState extends State<PaymentsTab> {
   }
 
   Widget _buildStatsGrid() {
-    return SizedBox(
-      height: 164,
-      child: Column(
-        children: [
-          Row(
+    return BlocBuilder<TransactionsBloc, TransactionsState>(
+      builder: (context, state) {
+        // Default values
+        String totalVolume = '₹0';
+        String successRate = '0%';
+        String pending = '0';
+        String disputes = '0';
+
+        if (state is TransactionsLoaded && state.analytics != null) {
+          final analytics = state.analytics!;
+          final volumeValue = analytics['totalVolume'];
+          final volume = volumeValue is int ? volumeValue.toDouble() : (volumeValue ?? 0.0);
+          totalVolume = '₹${_formatAmount(volume)}';
+          successRate = '${analytics['successRate'] ?? 0}%';
+          pending = '${analytics['pending'] ?? 0}';
+          disputes = '${analytics['disputed'] ?? 0}';
+        }
+
+        return SizedBox(
+          height: 164,
+          child: Column(
             children: [
-              Expanded(child: _buildStatCard('Total Volume', '₹66k', 'assets/images/payment_total_volume_icon.png')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('Success Rate', '94%', 'assets/images/payment_success_rate_icon.png')),
+              Row(
+                children: [
+                  Expanded(child: _buildStatCard('Total Volume', totalVolume, 'assets/images/payment_total_volume_icon.png')),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildStatCard('Success Rate', successRate, 'assets/images/payment_success_rate_icon.png')),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildStatCard('Pending', pending, 'assets/images/payment_pending_icon.png')),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildStatCard('Disputes', disputes, 'assets/images/payment_disputes_icon.png')),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard('Pending', '1', 'assets/images/payment_pending_icon.png')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('Disputes', '1', 'assets/images/payment_disputes_icon.png')),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -249,7 +198,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
-                setState(() {});
+                context.read<TransactionsBloc>().add(SearchTransactions(value));
               },
               decoration: InputDecoration(
                 hintText: 'Search transactions...',
@@ -350,6 +299,16 @@ class _PaymentsTabState extends State<PaymentsTab> {
                       _selectedFilter = option;
                     });
                     Navigator.pop(context);
+                    // Load transactions with the selected filter
+                    String? statusFilter;
+                    if (option == 'All Transactions') {
+                      statusFilter = null;
+                    } else if (option == 'Success') {
+                      statusFilter = 'processed'; // Backend uses 'processed' not 'success'
+                    } else {
+                      statusFilter = option.toLowerCase();
+                    }
+                    context.read<TransactionsBloc>().add(LoadTransactions(statusFilter: statusFilter));
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -395,53 +354,111 @@ class _PaymentsTabState extends State<PaymentsTab> {
   }
 
   Widget _buildTransactionsList() {
-    final filteredTransactions = _filteredTransactions;
-    
-    if (filteredTransactions.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Icon(
-              Icons.receipt_long,
-              size: 64,
-              color: const Color(0xFF717182).withValues(alpha: 0.3),
+    return BlocBuilder<TransactionsBloc, TransactionsState>(
+      builder: (context, state) {
+        if (state is TransactionsLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'No transactions found',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF717182),
+          );
+        }
+
+        if (state is TransactionsError) {
+          return Container(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Error loading transactions',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF717182),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF717182),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<TransactionsBloc>().add(const LoadTransactions());
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (state is TransactionsLoaded) {
+          final filteredTransactions = state.filteredTransactions;
+          
+          if (filteredTransactions.isEmpty) {
+            return Container(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long,
+                    size: 64,
+                    color: const Color(0xFF717182).withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No transactions found',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF717182),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Try adjusting your filters or search',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF717182),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try adjusting your filters or search',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF717182),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    return Column(
-      children: filteredTransactions.map((transaction) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildTransactionCard(transaction),
-        );
-      }).toList(),
+            );
+          }
+          
+          return Column(
+            children: filteredTransactions.map((transaction) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildTransactionCard(transaction),
+              );
+            }).toList(),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
     );
   }
 
   Widget _buildTransactionCard(Transaction transaction) {
-    final statusConfig = _getStatusConfig(transaction.status);
+    final statusConfig = _getStatusConfig(transaction.transactionStatus);
     
     return Container(
       decoration: BoxDecoration(
@@ -548,7 +565,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
                       ),
                     ),
                     Text(
-                      _formatDate(transaction.date),
+                      _formatDate(transaction.createdAt),
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
@@ -570,7 +587,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
                     ),
                   ),
                 ],
-                if (transaction.status == TransactionStatus.disputed) ...[
+                if (transaction.transactionStatus == TransactionStatus.disputed) ...[
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/transaction.dart';
+import '../repositories/transactions_repository.dart';
+import '../blocs/transactions_bloc.dart';
 import '../utils/app_colors.dart';
 import 'dispute_resolved_dialog.dart';
 
@@ -17,6 +20,7 @@ class ManageDisputeDialog extends StatefulWidget {
 
 class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
   final TextEditingController _notesController = TextEditingController();
+  bool _isResolving = false;
 
   @override
   void dispose() {
@@ -57,26 +61,78 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
     }
   }
 
-  void _resolveDispute() {
-    // Close the current dialog
-    Navigator.pop(context);
+  Future<void> _resolveDispute() async {
+    final resolution = _notesController.text.trim();
     
-    // Show the success confirmation dialog
-    showDialog(
-      context: context,
-      builder: (context) => DisputeResolvedDialog(
-        transaction: widget.transaction,
-      ),
-    );
+    if (resolution.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter resolution notes'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isResolving = true);
+    
+    try {
+      // Get dispute for this transaction
+      final repository = TransactionsRepository();
+      final disputes = await repository.getDisputes();
+      final dispute = disputes.firstWhere(
+        (d) => d.transactionId == widget.transaction.id && d.status == 'open',
+        orElse: () => throw Exception('No open dispute found for this transaction'),
+      );
+      
+      // Resolve the dispute
+      await repository.resolveDispute(dispute.id, resolution);
+      
+      if (mounted) {
+        // Close the current dialog
+        Navigator.pop(context);
+        
+        // Refresh transactions with current filter preserved
+        final bloc = context.read<TransactionsBloc>();
+        final currentState = bloc.state;
+        if (currentState is TransactionsLoaded) {
+          // Preserve the current filter
+          bloc.add(LoadTransactions(
+            statusFilter: currentState.currentFilter,
+          ));
+        } else {
+          // Fallback to no filter
+          bloc.add(const LoadTransactions());
+        }
+        
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (context) => DisputeResolvedDialog(
+            transaction: widget.transaction,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isResolving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to resolve dispute: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusConfig = _getStatusConfig(widget.transaction.status);
+    final statusConfig = _getStatusConfig(widget.transaction.transactionStatus);
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400),
         decoration: BoxDecoration(
@@ -94,9 +150,10 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Header
             Padding(
               padding: const EdgeInsets.all(25),
@@ -135,10 +192,15 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
               ),
             ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.fromLTRB(25, 0, 25, 25),
-              child: Column(
+              // Content
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  25,
+                  0,
+                  25,
+                  25 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Transaction ID and Status Row
@@ -260,7 +322,7 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
                     ),
                   ),
                   Text(
-                    _formatDate(widget.transaction.date),
+                    _formatDate(widget.transaction.createdAt),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
@@ -331,7 +393,7 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
                     width: double.infinity,
                     height: 36,
                     child: ElevatedButton(
-                      onPressed: _resolveDispute,
+                      onPressed: _isResolving ? null : _resolveDispute,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFD4A200),
                         shape: RoundedRectangleBorder(
@@ -340,21 +402,31 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
                         elevation: 0,
                         padding: EdgeInsets.zero,
                       ),
-                      child: const Text(
-                        'Resolve Dispute',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.white,
-                          height: 1.43,
-                        ),
-                      ),
+                      child: _isResolving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                              ),
+                            )
+                          : const Text(
+                              'Resolve Dispute',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.white,
+                                height: 1.43,
+                              ),
+                            ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

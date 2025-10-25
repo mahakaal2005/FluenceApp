@@ -224,7 +224,7 @@ class DisputeResolvedDialog extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              _formatDate(transaction.date),
+                              _formatDate(transaction.createdAt),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w400,

@@ -1,52 +1,185 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../utils/app_colors.dart';
 import '../widgets/send_notification_dialog.dart';
+import '../repositories/notifications_repository.dart';
+import '../repositories/content_repository.dart';
+import '../models/notification.dart';
+import '../models/faq.dart';
+import '../models/terms.dart';
 
 class ContentTab extends StatefulWidget {
-  const ContentTab({super.key});
+  final int initialTabIndex;
+  
+  const ContentTab({super.key, this.initialTabIndex = 0});
 
   @override
   State<ContentTab> createState() => _ContentTabState();
 }
 
 class _ContentTabState extends State<ContentTab> {
-  int _selectedTabIndex = 0;
+  late int _selectedTabIndex;
+  final NotificationsRepository _notificationsRepository = NotificationsRepository();
+  final ContentRepository _contentRepository = ContentRepository();
+  List<NotificationModel> _notifications = [];
+  bool _isLoadingNotifications = false;
+  Map<String, dynamic> _analytics = {};
+  bool _isLoadingAnalytics = false;
+  
+  // FAQ and Terms data
+  List<FAQ> _faqs = [];
+  bool _isLoadingFAQs = false;
+  Terms? _terms;
+  bool _isLoadingTerms = false;
 
-  final List<Map<String, String>> _faqs = [
-    {
-      'question': 'How do I reset my password?',
-      'answer': 'Navigate to Settings > Security > Reset Password',
-    },
-    {
-      'question': 'How to verify my merchant account?',
-      'answer': 'Upload business documents in Profile > Verification section',
-    },
-    {
-      'question': 'What are the payment settlement timelines?',
-      'answer': 'Settlements are processed within 2-3 business days',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _selectedTabIndex = widget.initialTabIndex;
+    _loadNotifications();
+    _loadAnalytics();
+    _loadFAQs();
+    _loadTerms();
+  }
 
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'title': 'System Maintenance',
-      'description': 'Scheduled maintenance on',
-      'status': 'scheduled',
-      'statusColor': AppColors.badgeYellow,
-      'statusTextColor': AppColors.badgeYellowText,
-      'date': '10/20/2025',
-      'recipients': '2,450 recipients',
-    },
-    {
-      'title': 'New Features Released',
-      'description': 'Check out our latest updates!',
-      'status': 'sent',
-      'statusColor': AppColors.badgeGreen,
-      'statusTextColor': AppColors.badgeGreenText,
-      'date': '10/15/2025',
-      'recipients': '12,458 recipients',
-    },
-  ];
+  Future<void> _loadAnalytics() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoadingAnalytics = true;
+    });
+
+    try {
+      final analytics = await _notificationsRepository.getAnalytics();
+      print('📊 Analytics loaded: $analytics');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _analytics = analytics;
+        _isLoadingAnalytics = false;
+      });
+    } catch (e) {
+      print('❌ Analytics error: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoadingAnalytics = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load analytics: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadFAQs() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoadingFAQs = true;
+    });
+
+    try {
+      final faqs = await _contentRepository.getFAQs();
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _faqs = faqs;
+        _isLoadingFAQs = false;
+      });
+    } catch (e) {
+      print('❌ FAQs error: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoadingFAQs = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load FAQs: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadTerms() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoadingTerms = true;
+    });
+
+    try {
+      final terms = await _contentRepository.getTerms();
+      
+      if (!mounted) return;
+      setState(() {
+        _terms = terms;
+        _isLoadingTerms = false;
+      });
+    } catch (e) {
+      print('❌ Terms error: $e');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoadingTerms = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load Terms: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _notificationsRepository.dispose();
+    _contentRepository.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadNotifications() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoadingNotifications = true;
+    });
+
+    try {
+      final notifications = await _notificationsRepository.getNotifications(
+        page: 1,
+        limit: 10,
+      );
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _notifications = notifications;
+        _isLoadingNotifications = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoadingNotifications = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load notifications: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -239,14 +372,35 @@ class _ContentTabState extends State<ContentTab> {
           // FAQ Items
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 23.989),
-            child: Column(
-              children: [
-                for (int i = 0; i < _faqs.length; i++) ...[
-                  _buildFAQItem(_faqs[i]),
-                  if (i < _faqs.length - 1) const SizedBox(height: 11.994),
-                ],
-              ],
-            ),
+            child: _isLoadingFAQs
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _faqs.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text(
+                            'No FAQs available',
+                            style: TextStyle(
+                              fontFamily: 'Arial',
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          for (int i = 0; i < _faqs.length; i++) ...[
+                            _buildFAQItem(_faqs[i]),
+                            if (i < _faqs.length - 1) const SizedBox(height: 11.994),
+                          ],
+                        ],
+                      ),
           ),
           const SizedBox(height: 23.99),
         ],
@@ -254,7 +408,7 @@ class _ContentTabState extends State<ContentTab> {
     );
   }
 
-  Widget _buildFAQItem(Map<String, String> faq) {
+  Widget _buildFAQItem(FAQ faq) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -265,7 +419,7 @@ class _ContentTabState extends State<ContentTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            faq['question']!,
+            faq.question,
             style: const TextStyle(
               fontFamily: 'Arial',
               fontSize: 16,
@@ -279,7 +433,7 @@ class _ContentTabState extends State<ContentTab> {
             height: 39.99,
             alignment: Alignment.topLeft,
             child: Text(
-              faq['answer']!,
+              faq.answer,
               style: const TextStyle(
                 fontFamily: 'Arial',
                 fontSize: 14,
@@ -351,65 +505,86 @@ class _ContentTabState extends State<ContentTab> {
             padding: const EdgeInsets.symmetric(horizontal: 23.989),
             child: Column(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 15.987),
-                  height: 44,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Text(
-                            'Terms_v2.3.pdf',
-                            style: TextStyle(
-                              fontFamily: 'Arial',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textPrimary,
-                              height: 1.5,
-                            ),
-                          ),
-                          Text(
-                            'Last updated: Oct 1, 2025',
-                            style: TextStyle(
-                              fontFamily: 'Arial',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textSecondary,
-                              height: 1.428,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        width: 49.49,
-                        height: 19.98,
-                        decoration: BoxDecoration(
-                          color: AppColors.badgeGreen,
-                          borderRadius: BorderRadius.circular(14),
+                _isLoadingTerms
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(),
                         ),
-                        child: const Center(
-                          child: Text(
-                            'Active',
-                            style: TextStyle(
-                              fontFamily: 'Arial',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.badgeGreenText,
-                              height: 1.333,
+                      )
+                    : _terms == null
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Text(
+                                'No Terms & Conditions available',
+                                style: TextStyle(
+                                  fontFamily: 'Arial',
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 15.987),
+                            height: 44,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Terms_v${_terms!.version}.pdf',
+                                      style: const TextStyle(
+                                        fontFamily: 'Arial',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.textPrimary,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Last updated: ${_formatDate(_terms!.effectiveDate)}',
+                                      style: const TextStyle(
+                                        fontFamily: 'Arial',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.textSecondary,
+                                        height: 1.428,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  width: 49.49,
+                                  height: 19.98,
+                                  decoration: BoxDecoration(
+                                    color: _terms!.isActive ? AppColors.badgeGreen : Colors.grey,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _terms!.isActive ? 'Active' : 'Inactive',
+                                      style: TextStyle(
+                                        fontFamily: 'Arial',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w400,
+                                        color: _terms!.isActive ? AppColors.badgeGreenText : Colors.white,
+                                        height: 1.333,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 11.994),
                 Container(
                   height: 35.98,
@@ -481,12 +656,17 @@ class _ContentTabState extends State<ContentTab> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            showDialog(
+          onTap: () async {
+            final result = await showDialog(
               context: context,
               barrierColor: Colors.transparent,
               builder: (context) => const SendNotificationDialog(),
             );
+            
+            if (result == true && mounted) {
+              _loadNotifications();
+              _loadAnalytics();
+            }
           },
           borderRadius: BorderRadius.circular(14),
           child: Row(
@@ -562,14 +742,35 @@ class _ContentTabState extends State<ContentTab> {
           // Notification Items
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 23.989),
-            child: Column(
-              children: [
-                for (int i = 0; i < _notifications.length; i++) ...[
-                  _buildNotificationItem(_notifications[i]),
-                  if (i < _notifications.length - 1) const SizedBox(height: 11.994),
-                ],
-              ],
-            ),
+            child: _isLoadingNotifications
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _notifications.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Center(
+                          child: Text(
+                            'No notifications yet',
+                            style: TextStyle(
+                              fontFamily: 'Arial',
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          for (int i = 0; i < _notifications.length; i++) ...[
+                            _buildNotificationItem(_notifications[i]),
+                            if (i < _notifications.length - 1) const SizedBox(height: 11.994),
+                          ],
+                        ],
+                      ),
           ),
           const SizedBox(height: 23.99),
         ],
@@ -577,7 +778,11 @@ class _ContentTabState extends State<ContentTab> {
     );
   }
 
-  Widget _buildNotificationItem(Map<String, dynamic> notification) {
+  Widget _buildNotificationItem(NotificationModel notification) {
+    final statusColor = notification.isRead ? AppColors.badgeGreen : AppColors.badgeYellow;
+    final statusTextColor = notification.isRead ? AppColors.badgeGreenText : AppColors.badgeYellowText;
+    final status = notification.isRead ? 'read' : 'unread';
+    
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -596,7 +801,7 @@ class _ContentTabState extends State<ContentTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      notification['title'],
+                      notification.title,
                       style: const TextStyle(
                         fontFamily: 'Arial',
                         fontSize: 16,
@@ -606,7 +811,7 @@ class _ContentTabState extends State<ContentTab> {
                       ),
                     ),
                     Text(
-                      notification['description'],
+                      notification.message,
                       style: const TextStyle(
                         fontFamily: 'Arial',
                         fontSize: 14,
@@ -625,17 +830,17 @@ class _ContentTabState extends State<ContentTab> {
                 height: 19.98,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: notification['statusColor'],
+                  color: statusColor,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
                   child: Text(
-                    notification['status'],
+                    status,
                     style: TextStyle(
                       fontFamily: 'Arial',
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
-                      color: notification['statusTextColor'],
+                      color: statusTextColor,
                       height: 1.333,
                     ),
                   ),
@@ -644,28 +849,20 @@ class _ContentTabState extends State<ContentTab> {
             ],
           ),
           const SizedBox(height: 7.985),
-          // Bottom section: Date and Recipients
+          // Bottom section: Date and Type
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  Image.asset(
-                    'assets/images/calendar_icon.png',
-                    width: 11.99,
-                    height: 11.99,
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 11.99,
                     color: AppColors.textSecondary,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.calendar_today,
-                        size: 11.99,
-                        color: AppColors.textSecondary,
-                      );
-                    },
                   ),
                   const SizedBox(width: 3.992),
                   Text(
-                    notification['date'],
+                    _formatDate(notification.createdAt),
                     style: const TextStyle(
                       fontFamily: 'Arial',
                       fontSize: 12,
@@ -678,22 +875,14 @@ class _ContentTabState extends State<ContentTab> {
               ),
               Row(
                 children: [
-                  Image.asset(
-                    'assets/images/recipients_icon.png',
-                    width: 11.99,
-                    height: 11.99,
+                  const Icon(
+                    Icons.label,
+                    size: 11.99,
                     color: AppColors.textSecondary,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.people,
-                        size: 11.99,
-                        color: AppColors.textSecondary,
-                      );
-                    },
                   ),
                   const SizedBox(width: 3.992),
                   Text(
-                    notification['recipients'],
+                    notification.type,
                     style: const TextStyle(
                       fontFamily: 'Arial',
                       fontSize: 12,
@@ -708,6 +897,246 @@ class _ContentTabState extends State<ContentTab> {
           ),
           const SizedBox(height: 15.987),
         ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  Widget _buildEngagementPieChart() {
+    final engagement = _analytics['engagement'] as Map?;
+    if (engagement == null) {
+      return const Center(child: Text('No data'));
+    }
+
+    final opened = int.tryParse(engagement['opened'].toString()) ?? 0;
+    final clicked = int.tryParse(engagement['clicked'].toString()) ?? 0;
+    final dismissed = int.tryParse(engagement['dismissed'].toString()) ?? 0;
+    final total = int.tryParse(engagement['total'].toString()) ?? 0;
+
+    if (total == 0) {
+      return const Center(child: Text('No engagement data'));
+    }
+
+    final openedPercent = ((opened / total) * 100).toStringAsFixed(0);
+    final clickedPercent = ((clicked / total) * 100).toStringAsFixed(0);
+    final dismissedPercent = ((dismissed / total) * 100).toStringAsFixed(0);
+
+    final sections = <PieChartSectionData>[];
+    
+    sections.add(PieChartSectionData(
+      value: opened.toDouble(),
+      title: '',
+      color: const Color(0xFFD4AF37),
+      radius: 95,
+    ));
+    
+    sections.add(PieChartSectionData(
+      value: clicked.toDouble(),
+      title: '',
+      color: const Color(0xFFA67C00),
+      radius: 95,
+    ));
+    
+    sections.add(PieChartSectionData(
+      value: dismissed.toDouble(),
+      title: '',
+      color: const Color(0xFFE8D7A0),
+      radius: 95,
+    ));
+
+    return Stack(
+      children: [
+        // Pie Chart - MUCH LARGER
+        Positioned.fill(
+          child: Center(
+            child: SizedBox(
+              width: 200,
+              height: 200,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 0,
+                  sections: sections,
+                  borderData: FlBorderData(show: false),
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Clicked label - top left (swapped with opened)
+        Positioned(
+          left: 5,
+          top: 0,
+          child: Text(
+            'Clicked: $clickedPercent%',
+            style: const TextStyle(
+              fontFamily: 'Arial',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFA67C00),
+            ),
+          ),
+        ),
+        // Dismissed label - top right
+        Positioned(
+          right: 5,
+          top: 0,
+          child: Text(
+            'Dismissed: $dismissedPercent%',
+            style: const TextStyle(
+              fontFamily: 'Arial',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFE8D7A0),
+            ),
+          ),
+        ),
+        // Opened label - bottom right (swapped with clicked)
+        Positioned(
+          right: 20,
+          bottom: 5,
+          child: Text(
+            'Opened: $openedPercent%',
+            style: const TextStyle(
+              fontFamily: 'Arial',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFD4AF37),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeeklyChart() {
+    final weekly = _analytics['weekly'] as List?;
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    // Always create 7 days of data (Mon-Sun)
+    final weeklyData = List<double>.filled(7, 0.0);
+    
+    // Fill in the data from backend if available
+    if (weekly != null && weekly.isNotEmpty) {
+      for (var item in weekly) {
+        // Backend might return data with date, we need to map it to day index
+        // For now, assume the data comes in order and fill sequentially
+        final index = weekly.indexOf(item);
+        if (index < 7) {
+          final count = int.tryParse(item['count'].toString()) ?? 0;
+          weeklyData[index] = count.toDouble();
+        }
+      }
+    }
+    
+    // Create bar groups for all 7 days
+    final barGroups = <BarChartGroupData>[];
+    for (int i = 0; i < 7; i++) {
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: weeklyData[i],
+              color: const Color(0xFFD4AF37),
+              width: 30,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(6),
+                topRight: Radius.circular(6),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Calculate maxY to be a multiple of 20, minimum 80
+    final maxValue = weeklyData.reduce((a, b) => a > b ? a : b);
+    final calculatedMaxY = ((maxValue / 20).ceil() * 20).toDouble();
+    final maxY = calculatedMaxY < 80 ? 80.0 : calculatedMaxY;
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceEvenly,
+        minY: 0,
+        maxY: maxY,
+        barGroups: barGroups,
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              interval: 20,
+              getTitlesWidget: (value, meta) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index >= 0 && index < 7) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      days[index],
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 20,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: AppColors.textSecondary.withOpacity(0.15),
+              strokeWidth: 1,
+            );
+          },
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border(
+            left: BorderSide(
+              color: AppColors.textSecondary.withOpacity(0.3),
+              width: 1.5,
+            ),
+            bottom: BorderSide(
+              color: AppColors.textSecondary.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -769,24 +1198,18 @@ class _ContentTabState extends State<ContentTab> {
               ],
             ),
           ),
-          // Chart placeholder
+          // Chart data
           Container(
             height: 200,
             margin: const EdgeInsets.symmetric(horizontal: 23.99),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Center(
-              child: Text(
-                'Weekly Chart',
-                style: TextStyle(
-                  fontFamily: 'Arial',
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
+            child: _isLoadingAnalytics
+                ? const Center(child: CircularProgressIndicator())
+                : _buildWeeklyChart(),
           ),
           const SizedBox(height: 23.99),
         ],
@@ -831,23 +1254,16 @@ class _ContentTabState extends State<ContentTab> {
               ),
             ),
           ),
-          // Chart placeholder
+          // Pie Chart
           Positioned(
-            left: 23.99,
-            top: 82.15,
-            right: 23.99,
+            left: 10,
+            top: 60,
+            right: 10,
             child: SizedBox(
-              height: 199.99,
-              child: const Center(
-                child: Text(
-                  'Engagement Chart',
-                  style: TextStyle(
-                    fontFamily: 'Arial',
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
+              height: 220,
+              child: _isLoadingAnalytics
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildEngagementPieChart(),
             ),
           ),
           // Metrics
@@ -859,11 +1275,22 @@ class _ContentTabState extends State<ContentTab> {
               height: 71.95,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildMetricCard('Opened', '8,540', AppColors.primary),
-                  _buildMetricCard('Clicked', '3,420', AppColors.primaryDark),
-                  _buildMetricCard('Dismissed', '1,280', const Color(0xFFD4AF37)),
-                ],
+                children: _isLoadingAnalytics
+                    ? [
+                        const Center(child: CircularProgressIndicator()),
+                      ]
+                    : () {
+                        final engagement = _analytics['engagement'] as Map?;
+                        final opened = int.tryParse(engagement?['opened']?.toString() ?? '0') ?? 0;
+                        final clicked = int.tryParse(engagement?['clicked']?.toString() ?? '0') ?? 0;
+                        final dismissed = int.tryParse(engagement?['dismissed']?.toString() ?? '0') ?? 0;
+                        
+                        return [
+                          _buildMetricCard('Opened', opened.toString(), const Color(0xFFD4AF37)),
+                          _buildMetricCard('Clicked', clicked.toString(), const Color(0xFFA67C00)),
+                          _buildMetricCard('Dismissed', dismissed.toString(), const Color(0xFFE8D7A0)),
+                        ];
+                      }(),
               ),
             ),
           ),

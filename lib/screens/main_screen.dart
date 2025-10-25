@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dashboard_tab.dart';
 import 'users_tab.dart';
 import 'posts_tab.dart';
@@ -6,6 +7,8 @@ import 'content_tab.dart';
 import 'payments_tab.dart';
 import 'profile_screen.dart';
 import '../utils/app_colors.dart';
+import '../blocs/auth_bloc.dart';
+import '../repositories/notifications_repository.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -16,14 +19,52 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  int _unreadNotificationCount = 0;
+  int _contentTabIndex = 0; // Track which sub-tab to show in ContentTab
+  final NotificationsRepository _notificationsRepository = NotificationsRepository();
 
-  final List<Widget> _tabs = const [
-    DashboardTab(),
-    UsersTab(),
-    PostsTab(),
-    PaymentsTab(),
-    ContentTab(),
+  void _navigateToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  List<Widget> get _tabs => [
+    DashboardTab(
+      onNavigateToTab: _navigateToTab,
+    ),
+    const UsersTab(),
+    const PostsTab(),
+    const PaymentsTab(),
+    ContentTab(initialTabIndex: _contentTabIndex),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Validate authentication on main screen load
+    context.read<AuthBloc>().add(AuthTokenValidated());
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await _notificationsRepository.getUnreadCount();
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = count;
+        });
+      }
+    } catch (e) {
+      print('❌ Failed to load unread count: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _notificationsRepository.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,33 +134,42 @@ class _MainScreenState extends State<MainScreen> {
                           },
                         ),
                         onPressed: () {
-                          // Handle notification tap
+                          // Navigate to Content tab (index 4) and switch to Notifications section (index 1)
+                          setState(() {
+                            _contentTabIndex = 1; // Notifications tab
+                            _currentIndex = 4; // Content tab
+                          });
+                          // Reload unread count after navigation
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            _loadUnreadCount();
+                          });
                         },
                       ),
                     ),
-                    Positioned(
-                      right: -4,
-                      top: -4,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: AppColors.badgeRed,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '3',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.white,
-                              height: 1.33,
+                    if (_unreadNotificationCount > 0)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: AppColors.badgeRed,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _unreadNotificationCount > 99 ? '99+' : _unreadNotificationCount.toString(),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.white,
+                                height: 1.33,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(width: 12),

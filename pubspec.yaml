@@ -1,5 +1,5 @@
 name: fluence_app
-description: "Fluence App - A new Flutter project."
+description: "Fluence Pay Admin Panel - Flutter admin application for managing users, posts, and transactions."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -54,6 +54,11 @@ dependencies:
   
   # JSON serialization
   json_annotation: ^4.9.0
+  
+  # Firebase Authentication
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_test:

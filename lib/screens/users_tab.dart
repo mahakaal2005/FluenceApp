@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../utils/app_colors.dart';
+import '../blocs/users_bloc.dart';
+import '../models/user.dart';
 
 class UsersTab extends StatefulWidget {
   const UsersTab({super.key});
@@ -13,61 +16,16 @@ class _UsersTabState extends State<UsersTab> {
   final TextEditingController _rejectReasonController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Load users when the tab is initialized
+    context.read<UsersBloc>().add(const LoadUsers());
+  }
+
+  @override
   void dispose() {
     _rejectReasonController.dispose();
     super.dispose();
-  }
-
-  final List<Map<String, dynamic>> _users = [
-    {
-      'name': 'Priya Sharma',
-      'email': 'priya@example.com',
-      'joinDate': '10/15/2025',
-      'status': 'pending',
-      'avatar': 'assets/images/user_avatar_1.png',
-      'company': null,
-    },
-    {
-      'name': 'Rajesh Kumar',
-      'email': 'rajesh@greengrocer.com',
-      'joinDate': '10/14/2025',
-      'status': 'pending',
-      'avatar': 'assets/images/user_avatar_2.png',
-      'company': 'Green Grocers Ltd',
-    },
-    {
-      'name': 'Anita Desai',
-      'email': 'anita@example.com',
-      'joinDate': '10/10/2025',
-      'status': 'approved',
-      'avatar': 'assets/images/user_avatar_3.png',
-      'company': null,
-    },
-    {
-      'name': 'Coffee House',
-      'email': 'info@coffeehouse.com',
-      'joinDate': '10/8/2025',
-      'status': 'approved',
-      'avatar': 'assets/images/user_avatar_4.png',
-      'company': 'Coffee House Mumbai',
-    },
-    {
-      'name': 'Vikram Singh',
-      'email': 'vikram@example.com',
-      'joinDate': '9/20/2025',
-      'status': 'suspended',
-      'avatar': 'assets/images/user_avatar_5.png',
-      'company': null,
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filteredUsers {
-    if (_selectedTab == 'All') return _users;
-    return _users.where((user) => user['status'] == _selectedTab.toLowerCase()).toList();
-  }
-
-  int get _pendingCount {
-    return _users.where((user) => user['status'] == 'pending').length;
   }
 
   void _showApproveDialog(BuildContext context, String userName) {
@@ -164,7 +122,15 @@ class _UsersTabState extends State<UsersTab> {
                   InkWell(
                     onTap: () {
                       Navigator.of(context).pop();
-                      // TODO: Add backend integration
+                      // Find the user by name and approve
+                      final usersState = context.read<UsersBloc>().state;
+                      if (usersState is UsersLoaded) {
+                        final user = usersState.users.firstWhere(
+                          (u) => u.name == userName,
+                          orElse: () => throw Exception('User not found'),
+                        );
+                        context.read<UsersBloc>().add(ApproveUser(user.id));
+                      }
                     },
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
@@ -362,7 +328,17 @@ class _UsersTabState extends State<UsersTab> {
                         return;
                       }
                       Navigator.of(context).pop();
-                      // TODO: Add backend integration with reason
+                      // Find the user by name and reject
+                      final usersState = context.read<UsersBloc>().state;
+                      if (usersState is UsersLoaded) {
+                        final user = usersState.users.firstWhere(
+                          (u) => u.name == userName,
+                          orElse: () => throw Exception('User not found'),
+                        );
+                        context.read<UsersBloc>().add(
+                          RejectUser(user.id, _rejectReasonController.text.trim()),
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
@@ -430,24 +406,44 @@ class _UsersTabState extends State<UsersTab> {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.background,
-      child: Column(
-        children: [
-          _buildTabList(),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: _filteredUsers.length,
-              itemBuilder: (context, index) {
-                return _buildUserCard(_filteredUsers[index]);
-              },
-            ),
-          ),
-        ],
+      child: BlocConsumer<UsersBloc, UsersState>(
+        listener: (context, state) {
+          if (state is UsersError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else if (state is UserActionSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          return Column(
+            children: [
+              _buildTabList(state),
+              Expanded(
+                child: _buildUsersList(state),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildTabList() {
+  Widget _buildTabList(UsersState state) {
+    int pendingCount = 0;
+    if (state is UsersLoaded) {
+      pendingCount = state.pendingCount;
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       padding: const EdgeInsets.all(3),
@@ -458,12 +454,118 @@ class _UsersTabState extends State<UsersTab> {
       child: Row(
         children: [
           _buildTab('All'),
-          _buildTab('Pending', badge: _pendingCount),
+          _buildTab('Pending', badge: pendingCount),
           _buildTab('Approved'),
           _buildTab('Suspended'),
         ],
       ),
     );
+  }
+
+  Widget _buildUsersList(UsersState state) {
+    if (state is UsersLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (state is UsersError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading users',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                context.read<UsersBloc>().add(const LoadUsers());
+              },
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state is UsersLoaded) {
+      final filteredUsers = _getFilteredUsers(state);
+      
+      if (filteredUsers.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.people_outline,
+                size: 64,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No ${_selectedTab.toLowerCase()} users found',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return RefreshIndicator(
+        onRefresh: () async {
+          context.read<UsersBloc>().add(const LoadUsers());
+        },
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          itemCount: filteredUsers.length,
+          itemBuilder: (context, index) {
+            return _buildUserCard(filteredUsers[index]);
+          },
+        ),
+      );
+    }
+
+    return const Center(
+      child: Text('Loading users...'),
+    );
+  }
+
+  List<AdminUser> _getFilteredUsers(UsersLoaded state) {
+    switch (_selectedTab) {
+      case 'All':
+        return state.allUsers;
+      case 'Pending':
+        return state.pendingUsers;
+      case 'Approved':
+        return state.approvedUsers;
+      case 'Suspended':
+        return state.suspendedUsers;
+      default:
+        return state.allUsers;
+    }
   }
 
   Widget _buildTab(String label, {int? badge}) {
@@ -475,6 +577,9 @@ class _UsersTabState extends State<UsersTab> {
           setState(() {
             _selectedTab = label;
           });
+          // Load users with the selected filter
+          final statusFilter = label == 'All' ? null : label.toLowerCase();
+          context.read<UsersBloc>().add(LoadUsers(statusFilter: statusFilter));
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
@@ -530,7 +635,7 @@ class _UsersTabState extends State<UsersTab> {
     );
   }
 
-  Widget _buildUserCard(Map<String, dynamic> user) {
+  Widget _buildUserCard(AdminUser user) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -548,7 +653,7 @@ class _UsersTabState extends State<UsersTab> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAvatar(user['avatar']),
+          _buildAvatar('assets/images/user_avatar_${user.id.hashCode % 5 + 1}.png'),
           const SizedBox(width: 10),
           Expanded(
             child: _buildUserInfo(user),
@@ -583,7 +688,7 @@ class _UsersTabState extends State<UsersTab> {
     );
   }
 
-  Widget _buildUserInfo(Map<String, dynamic> user) {
+  Widget _buildUserInfo(AdminUser user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -597,7 +702,7 @@ class _UsersTabState extends State<UsersTab> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    user['name'],
+                    user.name,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w400,
@@ -607,9 +712,9 @@ class _UsersTabState extends State<UsersTab> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (user['company'] != null)
+                  if (user.company != null)
                     Text(
-                      user['company'],
+                      user.company!,
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w400,
@@ -623,12 +728,12 @@ class _UsersTabState extends State<UsersTab> {
               ),
             ),
             const SizedBox(width: 8),
-            _buildStatusBadge(user['status']),
+            _buildStatusBadge(user.status),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          user['email'],
+          user.email,
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w400,
@@ -640,7 +745,7 @@ class _UsersTabState extends State<UsersTab> {
         ),
         const SizedBox(height: 2),
         Text(
-          'Joined: ${user['joinDate']}',
+          'Joined: ${_formatDate(user.joinDate)}',
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w400,
@@ -650,9 +755,9 @@ class _UsersTabState extends State<UsersTab> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        if (user['status'] == 'pending' || user['status'] == 'approved') ...[
+        if (user.status == 'pending' || user.status == 'approved') ...[
           const SizedBox(height: 8),
-          _buildActionButtons(user['status'], user['name']),
+          _buildActionButtons(user.status, user.name, user.id),
         ],
       ],
     );
@@ -703,7 +808,7 @@ class _UsersTabState extends State<UsersTab> {
     );
   }
 
-  Widget _buildActionButtons(String status, String userName) {
+  Widget _buildActionButtons(String status, String userName, String userId) {
     if (status == 'pending') {
       return Row(
         children: [
@@ -738,7 +843,7 @@ class _UsersTabState extends State<UsersTab> {
         textColor: AppColors.textPrimary,
         borderColor: Colors.black.withValues(alpha: 0.1),
         onTap: () {
-          // Handle suspend action
+          context.read<UsersBloc>().add(SuspendUser(userId));
         },
       );
     }
@@ -803,5 +908,9 @@ class _UsersTabState extends State<UsersTab> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
   }
 }
