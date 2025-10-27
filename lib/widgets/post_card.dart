@@ -29,6 +29,68 @@ class PostCard extends StatelessWidget {
     );
   }
 
+  Widget _buildPostImage(Post post) {
+    // Check if post has media URLs from database
+    if (post.imageAssetPath.isNotEmpty && post.imageAssetPath.startsWith('http')) {
+      // Network image from Instagram/social media
+      return Image.network(
+        post.imageAssetPath,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: AppColors.badgeGray,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppColors.badgeGray,
+            child: const Icon(
+              Icons.image,
+              color: AppColors.textSecondary,
+              size: 40,
+            ),
+          );
+        },
+      );
+    } else if (post.imageAssetPath.isNotEmpty) {
+      // Local asset image
+      return Image.asset(
+        post.imageAssetPath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppColors.badgeGray,
+            child: const Icon(
+              Icons.image,
+              color: AppColors.textSecondary,
+              size: 40,
+            ),
+          );
+        },
+      );
+    } else {
+      // No image - show placeholder
+      return Container(
+        color: AppColors.badgeGray,
+        child: const Icon(
+          Icons.image,
+          color: AppColors.textSecondary,
+          size: 40,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -122,20 +184,7 @@ class PostCard extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          post.imageAssetPath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: AppColors.badgeGray,
-                              child: const Icon(
-                                Icons.image,
-                                color: AppColors.textSecondary,
-                                size: 40,
-                              ),
-                            );
-                          },
-                        ),
+                        child: _buildPostImage(post),
                       ),
                     ),
                     const SizedBox(width: 12),

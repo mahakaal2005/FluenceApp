@@ -18,7 +18,8 @@ class AppColors {
   static const Color badgeGreenText = Color(0xFF008236);
   static const Color badgeGray = Color(0xFFF3F4F6);
   static const Color badgeGrayText = Color(0xFF364153);
-  static const Color badgeRed = Color(0xFFFB2C36);
+  static const Color badgeRed = Color(0xFFFF0000); // Changed to proper red for notification badge
+  static const Color badgeRedText = Color(0xFFFFFFFF); // Changed to white for better contrast
   static const Color badgeYellow = Color(0xFFFEF9C2);
   static const Color badgeYellowText = Color(0xFFA65F00);
   static const Color badgeOrange = Color(0xFFFFEDD4);

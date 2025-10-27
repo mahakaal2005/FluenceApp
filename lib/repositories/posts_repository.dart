@@ -7,8 +7,8 @@ class PostsRepository {
   PostsRepository({ApiService? apiService}) 
       : _apiService = apiService ?? ApiService();
 
-  // Get pending social posts for verification
-  Future<List<SocialPost>> getPendingSocialPosts() async {
+  // Get pending social posts for verification with raw data for duplicate detection
+  Future<List<Map<String, dynamic>>> getPendingSocialPostsWithMetadata() async {
     try {
       print('📝 [POSTS] Fetching pending posts...');
       print('   Service: social (port 4007)');
@@ -31,13 +31,16 @@ class PostsRepository {
           final posts = response['data']['posts'] as List;
           print('   Posts found: ${posts.length}');
           if (posts.isNotEmpty) {
-            print('   First post: ${posts[0].keys.toList()}');
+            print('   First post keys: ${posts[0].keys.toList()}');
+            if (posts[0]['has_duplicates'] != null) {
+              print('   ✓ Duplicate detection data present');
+            }
           }
-          return posts.map((post) => SocialPost.fromJson(post)).toList();
+          return posts.map((post) => post as Map<String, dynamic>).toList();
         } else if (response['data'] is List) {
           final posts = response['data'] as List;
           print('   Posts found (direct array): ${posts.length}');
-          return posts.map((post) => SocialPost.fromJson(post)).toList();
+          return posts.map((post) => post as Map<String, dynamic>).toList();
         }
       }
       
@@ -47,6 +50,12 @@ class PostsRepository {
       print('❌ [POSTS] Error: $e');
       throw Exception('Failed to fetch pending posts: $e');
     }
+  }
+
+  // Legacy method for backward compatibility
+  Future<List<SocialPost>> getPendingSocialPosts() async {
+    final postsWithMetadata = await getPendingSocialPostsWithMetadata();
+    return postsWithMetadata.map((post) => SocialPost.fromJson(post)).toList();
   }
 
   // Verify/approve a social media post

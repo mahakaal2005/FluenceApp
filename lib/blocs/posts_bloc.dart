@@ -110,11 +110,12 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
   Future<void> _onLoadPosts(LoadPosts event, Emitter<PostsState> emit) async {
     emit(PostsLoading());
     try {
-      final socialPosts = await _repository.getPendingSocialPosts();
+      final postsWithMetadata = await _repository.getPendingSocialPostsWithMetadata();
       
-      // Convert to UI models
-      final posts = socialPosts.map((socialPost) {
-        return Post.fromSocialPost(socialPost);
+      // Convert to UI models with raw data for duplicate detection
+      final posts = postsWithMetadata.map((postData) {
+        final socialPost = SocialPost.fromJson(postData);
+        return Post.fromSocialPost(socialPost, rawData: postData);
       }).toList();
       
       emit(PostsLoaded(posts));

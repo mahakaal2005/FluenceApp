@@ -42,6 +42,7 @@ class AdminUser extends Equatable {
   final String? phone;
   final String status;
   final DateTime joinDate;
+  final DateTime? lastActive;
   final String? company;
   final String? businessType;
 
@@ -52,6 +53,7 @@ class AdminUser extends Equatable {
     this.phone,
     required this.status,
     required this.joinDate,
+    this.lastActive,
     this.company,
     this.businessType,
   });
@@ -61,5 +63,5 @@ class AdminUser extends Equatable {
   Map<String, dynamic> toJson() => _$AdminUserToJson(this);
 
   @override
-  List<Object?> get props => [id, name, email, phone, status, joinDate, company, businessType];
+  List<Object?> get props => [id, name, email, phone, status, joinDate, lastActive, company, businessType];
 }

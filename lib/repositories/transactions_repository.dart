@@ -41,11 +41,21 @@ class TransactionsRepository {
       );
 
       if (response['success'] == true && response['data'] != null) {
+        print('💰 [TRANSACTIONS] Response data keys: ${response['data'].keys.toList()}');
+        
         final transactions = (response['data']['transactions'] as List)
             .map((t) => Transaction.fromJson(t))
             .toList();
         
         final analytics = response['data']['analytics'] as Map<String, dynamic>?;
+        print('💰 [TRANSACTIONS] Analytics object: $analytics');
+        
+        if (analytics != null) {
+          print('💰 [TRANSACTIONS] Analytics keys: ${analytics.keys.toList()}');
+          print('💰 [TRANSACTIONS] totalVolume: ${analytics['totalVolume']}');
+          print('💰 [TRANSACTIONS] volumeGrowth: ${analytics['volumeGrowth']}');
+          print('💰 [TRANSACTIONS] growth: ${analytics['growth']}');
+        }
         
         return {
           'transactions': transactions,
@@ -53,6 +63,7 @@ class TransactionsRepository {
         };
       }
       
+      print('⚠️ [TRANSACTIONS] No valid data in response');
       return {'transactions': <Transaction>[], 'analytics': null};
     } catch (e) {
       print('❌ [TRANSACTIONS] Error: $e');

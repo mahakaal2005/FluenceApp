@@ -94,7 +94,7 @@ class Post {
   });
 
   // Convert from SocialPost API response to UI model
-  factory Post.fromSocialPost(SocialPost socialPost) {
+  factory Post.fromSocialPost(SocialPost socialPost, {Map<String, dynamic>? rawData}) {
     final latitude = socialPost.gpsLatitude ?? 0.0;
     final longitude = socialPost.gpsLongitude ?? 0.0;
     
@@ -108,20 +108,32 @@ class Post {
       longitude: longitude,
       timestamp: socialPost.createdAt ?? DateTime.now(),
       status: socialPost.status == 'pending_review' ? PostStatus.pending : PostStatus.approved,
-      alertMessage: _getAlertMessage(latitude, longitude),
-      alertType: _getAlertType(latitude, longitude),
+      alertMessage: _getAlertMessage(latitude, longitude, rawData),
+      alertType: _getAlertType(latitude, longitude, rawData),
     );
   }
 
-  static String? _getAlertMessage(double lat, double lng) {
+  static String? _getAlertMessage(double lat, double lng, Map<String, dynamic>? rawData) {
+    // Check for duplicates first (higher priority)
+    if (rawData != null && rawData['has_duplicates'] == true) {
+      return 'Possible duplicate post detected';
+    }
+    
+    // Check GPS coordinates
     if (lat == 0.0 && lng == 0.0) return 'Invalid GPS coordinates';
-    // Add more validation logic as needed
+    
     return null;
   }
 
-  static AlertType? _getAlertType(double lat, double lng) {
+  static AlertType? _getAlertType(double lat, double lng, Map<String, dynamic>? rawData) {
+    // Duplicates are warnings (not errors)
+    if (rawData != null && rawData['has_duplicates'] == true) {
+      return AlertType.warning;
+    }
+    
+    // Invalid GPS is an error
     if (lat == 0.0 && lng == 0.0) return AlertType.error;
-    // Add more validation logic as needed
+    
     return null;
   }
 }
