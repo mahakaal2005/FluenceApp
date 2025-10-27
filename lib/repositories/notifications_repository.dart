@@ -30,7 +30,7 @@ class NotificationsRepository {
           .join('&');
       
       final response = await _apiService.get(
-        'api/notifications/notifications?$query',
+        'api/notifications?$query',
         service: ServiceType.notification,
       );
 
@@ -71,7 +71,7 @@ class NotificationsRepository {
   Future<int> getUnreadCount() async {
     try {
       final response = await _apiService.get(
-        'api/notifications/notifications/unread-count',
+        'api/notifications/unread-count',
         service: ServiceType.notification,
       );
 

@@ -128,33 +128,33 @@ class _DashboardTabState extends State<DashboardTab> {
         _buildStatCard(
           title: 'Total Users',
           value: _formatNumber(data.totalUsers),
-          badge: '+12%',
-          badgeColor: AppColors.badgeGreen,
-          badgeTextColor: AppColors.badgeGreenText,
+          badge: _formatGrowthBadge(data.totalUsersGrowth),
+          badgeColor: _getGrowthColor(data.totalUsersGrowth),
+          badgeTextColor: _getGrowthTextColor(data.totalUsersGrowth),
           iconPath: 'assets/images/stat_card_icon_1.png',
         ),
         _buildStatCard(
           title: 'Pending Posts',
           value: data.pendingPosts.toString(),
-          badge: '+${data.pendingPosts}',
-          badgeColor: AppColors.badgeGreen,
-          badgeTextColor: AppColors.badgeGreenText,
+          badge: _formatGrowthBadge(data.pendingPostsGrowth),
+          badgeColor: _getGrowthColor(data.pendingPostsGrowth),
+          badgeTextColor: _getGrowthTextColor(data.pendingPostsGrowth),
           iconPath: 'assets/images/stat_card_icon_2.png',
         ),
         _buildStatCard(
           title: 'Active Sessions',
           value: data.activeSessions.toString(),
-          badge: '${data.activeSessions}',
-          badgeColor: AppColors.badgeGray,
-          badgeTextColor: AppColors.badgeGrayText,
+          badge: _formatGrowthBadge(data.activeSessionsGrowth),
+          badgeColor: _getGrowthColor(data.activeSessionsGrowth),
+          badgeTextColor: _getGrowthTextColor(data.activeSessionsGrowth),
           iconPath: 'assets/images/stat_card_icon_3.png',
         ),
         _buildStatCard(
           title: 'Transactions',
           value: '₹${_formatAmount(data.totalTransactionVolume)}',
-          badge: '+8%',
-          badgeColor: AppColors.badgeGreen,
-          badgeTextColor: AppColors.badgeGreenText,
+          badge: _formatGrowthBadge(data.transactionVolumeGrowth),
+          badgeColor: _getGrowthColor(data.transactionVolumeGrowth),
+          badgeTextColor: _getGrowthTextColor(data.transactionVolumeGrowth),
           iconPath: 'assets/images/stat_card_icon_4.png',
         ),
       ],
@@ -524,6 +524,27 @@ class _DashboardTabState extends State<DashboardTab> {
       return '${(amount / 1000).toStringAsFixed(1)}K';
     }
     return amount.toStringAsFixed(0);
+  }
+
+  /// Format growth percentage for badge display
+  String _formatGrowthBadge(double growth) {
+    if (growth == 0) return '0%';
+    final sign = growth > 0 ? '+' : '';
+    return '$sign${growth.toStringAsFixed(1)}%';
+  }
+
+  /// Get badge background color based on growth value
+  Color _getGrowthColor(double growth) {
+    if (growth > 0) return AppColors.badgeGreen;
+    if (growth < 0) return AppColors.badgeRed;
+    return AppColors.badgeGray;
+  }
+
+  /// Get badge text color based on growth value
+  Color _getGrowthTextColor(double growth) {
+    if (growth > 0) return AppColors.badgeGreenText;
+    if (growth < 0) return AppColors.badgeRedText;
+    return AppColors.badgeGrayText;
   }
 
   Color _getActivityColor(String colorName) {
