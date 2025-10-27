@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/transaction.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_constants.dart';
 import '../widgets/manage_dispute_dialog.dart';
 import '../blocs/transactions_bloc.dart';
 
@@ -60,7 +61,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
     return BlocBuilder<TransactionsBloc, TransactionsState>(
       builder: (context, state) {
         // Default values
-        String totalVolume = '₹0';
+        String totalVolume = '${AppConstants.currencySymbol} 0';
         String successRate = '0%';
         String pending = '0';
         String disputes = '0';
@@ -69,7 +70,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
           final analytics = state.analytics!;
           final volumeValue = analytics['totalVolume'];
           final volume = volumeValue is int ? volumeValue.toDouble() : (volumeValue ?? 0.0);
-          totalVolume = '₹${_formatAmount(volume)}';
+          totalVolume = '${AppConstants.currencySymbol} ${_formatAmount(volume)}';
           successRate = '${analytics['successRate'] ?? 0}%';
           pending = '${analytics['pending'] ?? 0}';
           disputes = '${analytics['disputed'] ?? 0}';
@@ -556,7 +557,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '₹${_formatAmount(transaction.amount)}',
+                      '${AppConstants.currencySymbol} ${_formatAmount(transaction.amount)}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
