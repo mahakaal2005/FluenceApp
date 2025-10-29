@@ -273,10 +273,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       
       final recentPostsList = posts.take(3).toList();
       print('   ✓ Recent posts for activity: ${recentPostsList.length}');
-      for (var i = 0; i < recentPostsList.length; i++) {
-        final post = recentPostsList[i];
-        print('     ${i + 1}. ${post.username ?? post.displayName ?? 'Unknown'} - ${post.content?.substring(0, 30) ?? 'No content'}...');
-      }
+      // Skip detailed printing to avoid console encoding issues with emojis
+      // The data is fine, just the Windows console can't display all Unicode characters
       
       return {
         'pending': pendingCount,

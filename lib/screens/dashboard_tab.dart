@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_constants.dart';
 import '../blocs/dashboard_bloc.dart';
 import '../widgets/send_notification_dialog.dart';
 
@@ -151,7 +152,7 @@ class _DashboardTabState extends State<DashboardTab> {
         ),
         _buildStatCard(
           title: 'Transactions',
-          value: '₹${_formatAmount(data.totalTransactionVolume)}',
+          value: '${AppConstants.currencySymbol} ${_formatAmount(data.totalTransactionVolume)}',
           badge: _formatGrowthBadge(data.transactionVolumeGrowth),
           badgeColor: _getGrowthColor(data.transactionVolumeGrowth),
           badgeTextColor: _getGrowthTextColor(data.transactionVolumeGrowth),
