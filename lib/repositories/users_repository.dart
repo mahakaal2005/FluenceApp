@@ -7,6 +7,57 @@ class UsersRepository {
   UsersRepository({ApiService? apiService}) 
       : _apiService = apiService ?? ApiService();
 
+  // Get all users (for notifications, etc.)
+  Future<List<Map<String, dynamic>>> getAllUsers({
+    int page = 1,
+    int limit = 100,
+    String? role,
+    String? status,
+  }) async {
+    print('👥 [USERS] Fetching all users...');
+    print('   Page: $page, Limit: $limit, Role: $role, Status: $status');
+    
+    try {
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      if (role != null) queryParams['role'] = role;
+      if (status != null) queryParams['status'] = status;
+      
+      final query = queryParams.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('&');
+      
+      final response = await _apiService.get(
+        'api/users?$query',
+        service: ServiceType.auth,
+      );
+
+      print('✅ [USERS] Response received');
+      
+      if (response['success'] == true && response['data'] != null) {
+        final data = response['data'] as Map<String, dynamic>;
+        final users = data['users'] as List;
+        print('📦 [USERS] Found ${users.length} users');
+        
+        return users.map((user) => {
+          'id': user['id'],
+          'name': user['name'] ?? 'Unknown',
+          'email': user['email'] ?? '',
+          'role': user['role'] ?? 'user',
+          'status': user['status'] ?? 'active',
+        }).toList();
+      }
+      
+      print('⚠️ [USERS] No valid data in response, returning empty list');
+      return [];
+    } catch (e) {
+      print('❌ [USERS] Error fetching users: $e');
+      throw Exception('Failed to fetch users: $e');
+    }
+  }
+
   // Get all merchant applications (admin endpoint)
   Future<List<AdminUser>> getMerchantApplications({
     int page = 1,
