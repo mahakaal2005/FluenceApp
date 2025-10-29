@@ -32,7 +32,7 @@ class ApiService {
   // NOTE: Do NOT include port numbers or trailing slashes in BASE_URL
   // ============================================
   
-  static const String BASE_URL = 'http://localhost'; // 👈 CHANGE THIS FOR PRODUCTION
+  static const String BASE_URL = 'http://192.168.0.180'; // 👈 CHANGE THIS FOR PRODUCTION
   
   // Service ports (these remain constant across all environments)
   static const Map<ServiceType, int> _servicePorts = {

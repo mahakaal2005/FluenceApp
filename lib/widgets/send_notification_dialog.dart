@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../repositories/notifications_repository.dart';
+import '../repositories/users_repository.dart';
 
 class SendNotificationDialog extends StatefulWidget {
   const SendNotificationDialog({super.key});
@@ -35,17 +36,31 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
   Future<void> _loadUsers() async {
     setState(() => _isLoadingUsers = true);
     try {
-      // TODO: Load users from users repository
-      // For now, using mock data
-      _allUsers = [
-        {'id': '1', 'name': 'John Doe', 'email': 'john@example.com'},
-        {'id': '2', 'name': 'Jane Smith', 'email': 'jane@example.com'},
-        {'id': '3', 'name': 'Bob Johnson', 'email': 'bob@example.com'},
-        {'id': '4', 'name': 'Alice Williams', 'email': 'alice@example.com'},
-        {'id': '5', 'name': 'Charlie Brown', 'email': 'charlie@example.com'},
-      ];
+      final usersRepository = UsersRepository();
+      // Fetch all active users (not admins)
+      final users = await usersRepository.getAllUsers(
+        limit: 1000, // Get all users
+        role: 'user', // Only regular users, not admins
+        status: 'active', // Only active users
+      );
+      
+      if (mounted) {
+        setState(() {
+          _allUsers = users;
+        });
+      }
+      
+      print('✅ Loaded ${users.length} users for notifications');
     } catch (e) {
-      print('Error loading users: $e');
+      print('❌ Error loading users: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load users: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoadingUsers = false);
