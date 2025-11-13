@@ -157,7 +157,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       'Reset Password',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: 'Arial',
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF0A0A0A),
@@ -172,7 +171,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         'Enter your email to receive a password reset link',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'Arial',
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
                           color: Color(0xFF717182),
@@ -215,7 +213,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 style: const TextStyle(
-                                  fontFamily: 'Arial',
                                   fontSize: 16,
                                   fontWeight: FontWeight.w400,
                                   color: Color(0xFF717182),
@@ -223,7 +220,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 decoration: const InputDecoration(
                                   hintText: 'admin@example.com',
                                   hintStyle: TextStyle(
-                                    fontFamily: 'Arial',
                                     fontSize: 16,
                                     fontWeight: FontWeight.w400,
                                     color: Color(0xFF717182),
@@ -290,7 +286,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               : const Text(
                                   'Send Reset Link',
                                   style: TextStyle(
-                                    fontFamily: 'Arial',
                                     fontSize: 14,
                                     fontWeight: FontWeight.w400,
                                     color: Colors.white,
@@ -314,7 +309,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       child: const Text(
                         'Back to Login',
                         style: TextStyle(
-                          fontFamily: 'Arial',
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
                           color: Color(0xFF0A0A0A),

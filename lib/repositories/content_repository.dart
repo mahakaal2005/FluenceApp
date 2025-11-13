@@ -17,9 +17,9 @@ class ContentRepository {
     int offset = 0,
   }) async {
     try {
-      final queryParams = <String, String>{
-        'limit': limit.toString(),
-        'offset': offset.toString(),
+      final queryParams = <String, dynamic>{
+        'limit': limit,
+        'offset': offset,
       };
       
       if (category != null && category.isNotEmpty) {
@@ -29,6 +29,8 @@ class ContentRepository {
       final query = queryParams.entries
           .map((e) => '${e.key}=${e.value}')
           .join('&');
+      
+      print('🔍 FAQ Query: api/content/faq?$query');
       
       final response = await _apiService.get(
         'api/content/faq?$query',
@@ -72,6 +74,70 @@ class ContentRepository {
     } catch (e) {
       print('❌ Create FAQ Error: $e');
       throw Exception('Failed to create FAQ: $e');
+    }
+  }
+
+  /// Update an existing FAQ (Admin only)
+  Future<FAQ> updateFAQ({
+    required String id,
+    required String question,
+    required String answer,
+    required String category,
+    List<String>? tags,
+  }) async {
+    try {
+      print('🔄 Updating FAQ: $id');
+      
+      final response = await _apiService.put(
+        'api/content/faq/$id',
+        {
+          'question': question,
+          'answer': answer,
+          'category': category,
+          if (tags != null) 'tags': tags,
+        },
+        service: ServiceType.notification,
+      );
+
+      if (response['success'] == true && response['data'] != null) {
+        print('✅ FAQ updated successfully');
+        return FAQ.fromJson(response['data'] as Map<String, dynamic>);
+      }
+      throw Exception('Failed to update FAQ');
+    } catch (e) {
+      print('❌ Update FAQ Error: $e');
+      // Check if it's a 404 (endpoint not implemented yet)
+      if (e.toString().contains('404') || e.toString().contains('Not found')) {
+        throw Exception(
+          '⚠️ Update FAQ endpoint not yet implemented on backend. '
+          'Please implement PUT /api/content/faq/:faqId endpoint first.'
+        );
+      }
+      throw Exception('Failed to update FAQ: $e');
+    }
+  }
+
+  /// Delete an FAQ (Admin only)
+  Future<void> deleteFAQ(String id) async {
+    try {
+      print('🗑️ Deleting FAQ: $id');
+      
+      await _apiService.delete(
+        'api/content/faq/$id',
+        service: ServiceType.notification,
+      );
+      
+      print('✅ FAQ deleted successfully');
+    } catch (e) {
+      print('❌ Delete FAQ Error: $e');
+      // Check if it's a 404 (endpoint not implemented yet)
+      if (e.toString().contains('404') || e.toString().contains('Not found')) {
+        throw Exception(
+          '⚠️ Delete FAQ endpoint not yet implemented on backend. '
+          'Please implement DELETE /api/content/faq/:faqId endpoint first.'
+        );
+      }
+      throw Exception('Failed to delete FAQ: $e');
     }
   }
 

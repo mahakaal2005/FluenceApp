@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/main_screen.dart';
@@ -8,6 +9,7 @@ import 'blocs/users_bloc.dart';
 import 'blocs/posts_bloc.dart';
 import 'blocs/transactions_bloc.dart';
 import 'blocs/dashboard_bloc.dart';
+import 'blocs/activity_feed_bloc.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -31,6 +33,9 @@ class App extends StatelessWidget {
         BlocProvider<DashboardBloc>(
           create: (context) => DashboardBloc(),
         ),
+        BlocProvider<ActivityFeedBloc>(
+          create: (context) => ActivityFeedBloc(),
+        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -38,6 +43,11 @@ class App extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
+        ).copyWith(
+          // Set Inter as the default font family for the entire app
+          // Using copyWith ensures proper theme inheritance
+          textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+          primaryTextTheme: GoogleFonts.interTextTheme(ThemeData.light().primaryTextTheme),
         ),
         initialRoute: '/',
         routes: {

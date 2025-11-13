@@ -129,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           message,
                           style: const TextStyle(
-                            fontFamily: 'Arial',
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                             color: Color(0xFF0A0A0A),
@@ -291,7 +290,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Admin Panel',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'Arial',
                           fontSize: 30,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF0A0A0A),
@@ -306,7 +304,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Sign in to manage your platform',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Arial',
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
                             color: Color(0xFF717182),
@@ -354,7 +351,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   style: const TextStyle(
-                                    fontFamily: 'Arial',
                                     fontSize: 16,
                                     fontWeight: FontWeight.w400,
                                     color: Color(0xFF717182),
@@ -362,7 +358,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   decoration: const InputDecoration(
                                     hintText: 'admin@fluence.com',
                                     hintStyle: TextStyle(
-                                      fontFamily: 'Arial',
                                       fontSize: 16,
                                       fontWeight: FontWeight.w400,
                                       color: Color(0xFF717182),
@@ -420,7 +415,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   style: const TextStyle(
-                                    fontFamily: 'Arial',
                                     fontSize: 16,
                                     fontWeight: FontWeight.w400,
                                     color: Color(0xFF717182),
@@ -428,7 +422,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   decoration: const InputDecoration(
                                     hintText: 'Enter password',
                                     hintStyle: TextStyle(
-                                      fontFamily: 'Arial',
                                       fontSize: 16,
                                       fontWeight: FontWeight.w400,
                                       color: Color(0xFF717182),
@@ -489,7 +482,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Text(
                               'Forgot password?',
                               style: TextStyle(
-                                fontFamily: 'Arial',
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
                                 color: Color(0xFFD4A200),
@@ -548,7 +540,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : const Text(
                                     'Sign In',
                                     style: TextStyle(
-                                      fontFamily: 'Arial',
                                       fontSize: 14,
                                       fontWeight: FontWeight.w400,
                                       color: Colors.white,
@@ -621,7 +612,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Text(
             text,
             style: const TextStyle(
-              fontFamily: 'Arial',
               fontSize: 12,
               fontWeight: FontWeight.w400,
               color: Color(0xFF717182),

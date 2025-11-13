@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../utils/app_colors.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../blocs/notification_recipients_bloc.dart';
 import '../repositories/notifications_repository.dart';
-import '../repositories/users_repository.dart';
+import '../utils/app_colors.dart';
+import 'success_toast.dart';
 
 class SendNotificationDialog extends StatefulWidget {
   const SendNotificationDialog({super.key});
@@ -16,13 +19,15 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
   final _searchController = TextEditingController();
   bool _isSending = false;
   List<String> _selectedUserIds = []; // Empty means all users
-  List<Map<String, dynamic>> _allUsers = [];
-  bool _isLoadingUsers = false;
+  DateTime? _scheduledDateTime;
 
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    // Load users using BLoC
+    context.read<NotificationRecipientsBloc>().add(
+      const LoadNotificationRecipients(),
+    );
   }
 
   @override
@@ -33,46 +38,16 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
     super.dispose();
   }
 
-  Future<void> _loadUsers() async {
-    setState(() => _isLoadingUsers = true);
-    try {
-      final usersRepository = UsersRepository();
-      // Fetch all active users (not admins)
-      final users = await usersRepository.getAllUsers(
-        limit: 1000, // Get all users
-        role: 'user', // Only regular users, not admins
-        status: 'active', // Only active users
-      );
-      
-      if (mounted) {
-        setState(() {
-          _allUsers = users;
-        });
-      }
-      
-      print('✅ Loaded ${users.length} users for notifications');
-    } catch (e) {
-      print('❌ Error loading users: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load users: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingUsers = false);
-      }
-    }
-  }
+  String _getRecipientLabel(NotificationRecipientsState usersState) {
+    final allUsers = usersState is RecipientsLoaded ? usersState.users : [];
 
-  String _getRecipientLabel() {
     if (_selectedUserIds.isEmpty) {
-      return 'All Users (${_allUsers.length})';
-    } else if (_selectedUserIds.length == 1) {
-      final user = _allUsers.firstWhere((u) => u['id'] == _selectedUserIds[0]);
+      return 'All Users (${allUsers.length})';
+    } else if (_selectedUserIds.length == 1 && allUsers.isNotEmpty) {
+      final user = allUsers.firstWhere(
+        (u) => u['id'] == _selectedUserIds[0],
+        orElse: () => {'name': 'Unknown'},
+      );
       return user['name'];
     } else {
       return '${_selectedUserIds.length} Users Selected';
@@ -84,224 +59,288 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final searchQuery = _searchController.text.toLowerCase();
-            final filteredUsers = _allUsers.where((user) {
-              final name = (user['name'] as String).toLowerCase();
-              final email = (user['email'] as String).toLowerCase();
-              return name.contains(searchQuery) || email.contains(searchQuery);
-            }).toList();
+      builder: (modalContext) {
+        return BlocProvider.value(
+          value: context.read<NotificationRecipientsBloc>(),
+          child:
+              BlocBuilder<
+                NotificationRecipientsBloc,
+                NotificationRecipientsState
+              >(
+                builder: (context, usersState) {
+                  final allUsers = usersState is RecipientsLoaded
+                      ? usersState.users
+                      : [];
+                  final isLoading = usersState is RecipientsLoading;
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: const BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.textSecondary.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Select Recipients',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                  return StatefulBuilder(
+                    builder: (context, setModalState) {
+                      final searchQuery = _searchController.text.toLowerCase();
+                      final filteredUsers = allUsers.where((user) {
+                        final name = (user['name'] as String).toLowerCase();
+                        final email = (user['email'] as String).toLowerCase();
+                        return name.contains(searchQuery) ||
+                            email.contains(searchQuery);
+                      }).toList();
+
+                      return Container(
+                        height: MediaQuery.of(context).size.height * 0.7,
+                        decoration: const BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            setModalState(() {
-                              if (_selectedUserIds.isEmpty) {
-                                _selectedUserIds = _allUsers.map((u) => u['id'] as String).toList();
-                              } else {
-                                _selectedUserIds.clear();
-                              }
-                            });
-                          },
-                          child: Text(
-                            _selectedUserIds.isEmpty ? 'Select All' : 'Clear All',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.3,
+                                ),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Search bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F3F5),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => setModalState(() {}),
-                        decoration: const InputDecoration(
-                          hintText: 'Search users...',
-                          hintStyle: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: AppColors.textSecondary,
-                            size: 20,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // User list
-                  Expanded(
-                    child: _isLoadingUsers
-                        ? const Center(child: CircularProgressIndicator())
-                        : ListView.builder(
-                            itemCount: filteredUsers.length,
-                            itemBuilder: (context, index) {
-                              final user = filteredUsers[index];
-                              final userId = user['id'] as String;
-                              final isSelected = _selectedUserIds.contains(userId);
-
-                              return InkWell(
-                                onTap: () {
-                                  setModalState(() {
-                                    if (isSelected) {
-                                      _selectedUserIds.remove(userId);
-                                    } else {
-                                      _selectedUserIds.add(userId);
-                                    }
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? const Color(0xFFF9FAFB) : Colors.transparent,
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Select Recipients',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? AppColors.primary : Colors.transparent,
-                                          border: Border.all(
-                                            color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                                            width: 2,
-                                          ),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: isSelected
-                                            ? const Icon(
-                                                Icons.check,
-                                                color: AppColors.white,
-                                                size: 14,
-                                              )
-                                            : null,
+                                  TextButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        if (_selectedUserIds.isEmpty) {
+                                          _selectedUserIds = allUsers
+                                              .map((u) => u['id'] as String)
+                                              .toList();
+                                        } else {
+                                          _selectedUserIds.clear();
+                                        }
+                                      });
+                                    },
+                                    child: Text(
+                                      _selectedUserIds.isEmpty
+                                          ? 'Select All'
+                                          : 'Clear All',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              user['name'] as String,
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                                color: AppColors.textPrimary,
-                                              ),
-                                            ),
-                                            Text(
-                                              user['email'] as String,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Search bar
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Container(
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3F3F5),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: TextField(
+                                  controller: _searchController,
+                                  onChanged: (value) => setModalState(() {}),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Search users...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    prefixIcon: Icon(
+                                      Icons.search,
+                                      color: AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                  ),
-                  // Done button
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {}); // Update parent state
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // User list
+                            Expanded(
+                              child: isLoading
+                                  ? const Center(
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : ListView.builder(
+                                      itemCount: filteredUsers.length,
+                                      itemBuilder: (context, index) {
+                                        final user = filteredUsers[index];
+                                        final userId = user['id'] as String;
+                                        final isSelected = _selectedUserIds
+                                            .contains(userId);
+
+                                        return InkWell(
+                                          onTap: () {
+                                            setModalState(() {
+                                              if (isSelected) {
+                                                _selectedUserIds.remove(userId);
+                                              } else {
+                                                _selectedUserIds.add(userId);
+                                              }
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? const Color(0xFFF9FAFB)
+                                                  : Colors.transparent,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? AppColors.primary
+                                                        : Colors.transparent,
+                                                    border: Border.all(
+                                                      color: isSelected
+                                                          ? AppColors.primary
+                                                          : AppColors
+                                                                .textSecondary,
+                                                      width: 2,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                  ),
+                                                  child: isSelected
+                                                      ? const Icon(
+                                                          Icons.check,
+                                                          color:
+                                                              AppColors.white,
+                                                          size: 14,
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        user['name'] as String,
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w600
+                                                              : FontWeight.w400,
+                                                          color: AppColors
+                                                              .textPrimary,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        user['email'] as String,
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w400,
+                                                          color: AppColors
+                                                              .textSecondary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                            // Done button
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SizedBox(
+                                width: double.infinity,
+                                height: 44,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {}); // Update parent state
+                                    Navigator.pop(context);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _selectedUserIds.isEmpty
+                                        ? 'Send to All Users'
+                                        : 'Done (${_selectedUserIds.length} selected)',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          _selectedUserIds.isEmpty
-                              ? 'Send to All Users'
-                              : 'Done (${_selectedUserIds.length} selected)',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                      );
+                    },
+                  );
+                },
               ),
-            );
-          },
         );
       },
     );
   }
 
-  Future<void> _sendNotification() async {
-    if (_titleController.text.trim().isEmpty || _messageController.text.trim().isEmpty) {
+  Future<void> _sendNotification({bool sendNow = true}) async {
+    if (_titleController.text.trim().isEmpty ||
+        _messageController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    // If not sending now, validate that a schedule time is set
+    if (!sendNow && _scheduledDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a date and time to schedule')),
       );
       return;
     }
@@ -310,34 +349,95 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
 
     try {
       final repository = NotificationsRepository();
-      // TODO: Update repository to support recipientType parameter
       await repository.sendNotification(
         title: _titleController.text.trim(),
         message: _messageController.text.trim(),
         type: 'in_app',
+        scheduledAt: sendNow ? null : _scheduledDateTime,
       );
-      // Note: Currently sends to all users. Backend needs to support recipient filtering.
 
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notification sent successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Show custom toast with appropriate message
+        if (sendNow) {
+          SuccessToast.show(context, 'Notification sent successfully!');
+        } else {
+          SuccessToast.show(context, 'Notification scheduled successfully!');
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSending = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send notification: $e'),
+            content: Text('Failed to ${sendNow ? 'send' : 'schedule'} notification: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
+  }
+
+  Future<void> _pickScheduleDateTime() async {
+    final now = DateTime.now();
+    
+    // Pick date
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDateTime ?? now.add(const Duration(hours: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: AppColors.white,
+              surface: AppColors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (date == null) return;
+
+    if (!mounted) return;
+
+    // Pick time
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+        _scheduledDateTime ?? now.add(const Duration(hours: 1)),
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: AppColors.white,
+              surface: AppColors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (time == null) return;
+
+    setState(() {
+      _scheduledDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
   }
 
   @override
@@ -351,16 +451,14 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
           Positioned.fill(
             child: GestureDetector(
               onTap: () => Navigator.of(context).pop(),
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.5),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
           ),
           // Dialog box
           Center(
             child: Container(
-              width: 362.29,
-              constraints: const BoxConstraints(maxHeight: 442.17),
+              width: 420,
+              constraints: const BoxConstraints(maxHeight: 550),
               decoration: BoxDecoration(
                 color: AppColors.white,
                 border: Border.all(
@@ -391,7 +489,6 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                             child: Text(
                               'Send Push Notification',
                               style: TextStyle(
-                                fontFamily: 'Arial',
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textPrimary,
@@ -435,33 +532,30 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                           const Text(
                             'Title',
                             style: TextStyle(
-                              fontFamily: 'Arial',
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                               color: AppColors.textSecondary,
                               height: 1.428,
                             ),
                           ),
-                          const SizedBox(height: 7.985),
+                          const SizedBox(height: 6),
                           Container(
-                            height: 40,
+                            height: 38,
                             decoration: BoxDecoration(
                               color: const Color(0xFFF3F3F5),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: TextField(
                               controller: _titleController,
                               style: const TextStyle(
-                                fontFamily: 'Arial',
-                                fontSize: 16,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w400,
                                 color: AppColors.textPrimary,
                               ),
                               decoration: const InputDecoration(
                                 hintText: 'Notification title...',
                                 hintStyle: TextStyle(
-                                  fontFamily: 'Arial',
-                                  fontSize: 16,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w400,
                                   color: AppColors.textSecondary,
                                 ),
@@ -474,39 +568,36 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 15.987),
+                          const SizedBox(height: 12),
                           // Message field
                           const Text(
                             'Message',
                             style: TextStyle(
-                              fontFamily: 'Arial',
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                               color: AppColors.textSecondary,
                               height: 1.428,
                             ),
                           ),
-                          const SizedBox(height: 7.985),
+                          const SizedBox(height: 6),
                           Container(
-                            height: 64,
+                            height: 58,
                             decoration: BoxDecoration(
                               color: const Color(0xFFF3F3F5),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: TextField(
                               controller: _messageController,
-                              maxLines: 3,
+                              maxLines: 2,
                               style: const TextStyle(
-                                fontFamily: 'Arial',
-                                fontSize: 16,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w400,
                                 color: AppColors.textPrimary,
                               ),
                               decoration: const InputDecoration(
                                 hintText: 'Notification message...',
                                 hintStyle: TextStyle(
-                                  fontFamily: 'Arial',
-                                  fontSize: 16,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w400,
                                   color: AppColors.textSecondary,
                                 ),
@@ -519,51 +610,133 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 15.987),
+                          const SizedBox(height: 12),
                           // Recipients selector
                           const Text(
                             'Recipients',
                             style: TextStyle(
-                              fontFamily: 'Arial',
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                               color: AppColors.textSecondary,
-                              height: 1.428,
-                            ),
+                            height: 1.428,
                           ),
-                          const SizedBox(height: 7.985),
-                          InkWell(
-                            onTap: () => _showRecipientSelector(),
-                            borderRadius: BorderRadius.circular(14),
-                            child: Container(
-                              width: double.infinity,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF3F3F5),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _getRecipientLabel(),
-                                    style: const TextStyle(
-                                      fontFamily: 'Arial',
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w400,
-                                      color: AppColors.textPrimary,
+                        ),
+                        const SizedBox(height: 6),
+                        BlocBuilder<
+                          NotificationRecipientsBloc,
+                          NotificationRecipientsState
+                        >(
+                          builder: (context, usersState) {
+                            return InkWell(
+                              onTap: () => _showRecipientSelector(),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: double.infinity,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3F3F5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      _getRecipientLabel(usersState),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.textPrimary,
+                                      ),
                                     ),
-                                  ),
-                                  Icon(
-                                    Icons.keyboard_arrow_down,
-                                    color: AppColors.textSecondary.withValues(alpha: 0.5),
-                                    size: 20,
-                                  ),
-                                ],
+                                    Icon(
+                                      Icons.keyboard_arrow_down,
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.5),
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
                               ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        // Schedule date/time selector
+                        const Text(
+                          'Schedule (Optional)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textSecondary,
+                            height: 1.428,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: _pickScheduleDateTime,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: double.infinity,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F3F5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _scheduledDateTime == null
+                                        ? 'Send immediately'
+                                        : 'Scheduled: ${_scheduledDateTime!.day}/${_scheduledDateTime!.month}/${_scheduledDateTime!.year} ${_scheduledDateTime!.hour.toString().padLeft(2, '0')}:${_scheduledDateTime!.minute.toString().padLeft(2, '0')}',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                      color: _scheduledDateTime == null
+                                          ? AppColors.textSecondary
+                                          : AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    if (_scheduledDateTime != null) ...[
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _scheduledDateTime = null;
+                                          });
+                                        },
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: AppColors.textSecondary,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Icon(
+                                      Icons.calendar_today,
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.5),
+                                      size: 16,
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
+                        ),
                         ],
                       ),
                     ),
@@ -574,12 +747,14 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                     padding: const EdgeInsets.fromLTRB(25.09, 0, 25.09, 25.09),
                     child: Column(
                       children: [
-                        // Send Now button
+                        // Send/Schedule button
                         SizedBox(
                           width: double.infinity,
                           height: 37,
                           child: ElevatedButton(
-                            onPressed: _isSending ? null : _sendNotification,
+                            onPressed: _isSending 
+                                ? null 
+                                : () => _sendNotification(sendNow: _scheduledDateTime == null),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(
@@ -594,13 +769,14 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.white,
+                                      ),
                                     ),
                                   )
-                                : const Text(
-                                    'Send Now',
-                                    style: TextStyle(
-                                      fontFamily: 'Arial',
+                                : Text(
+                                    _scheduledDateTime == null ? 'Send Now' : 'Schedule Notification',
+                                    style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w400,
                                       color: AppColors.white,
@@ -631,7 +807,6 @@ class _SendNotificationDialogState extends State<SendNotificationDialog> {
                             child: const Text(
                               'Cancel',
                               style: TextStyle(
-                                fontFamily: 'Arial',
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
                                 color: AppColors.textPrimary,

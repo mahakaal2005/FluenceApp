@@ -19,13 +19,13 @@ class ApprovePostDialog extends StatelessWidget {
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
-        width: 362.29,
+        width: 512,
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: Colors.black.withValues(alpha: 0.1),
-            width: 1.1,
+            width: 0.8,
           ),
           boxShadow: [
             BoxShadow(
@@ -40,7 +40,7 @@ class ApprovePostDialog extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(25.09),
+        padding: const EdgeInsets.all(24.8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -51,13 +51,11 @@ class ApprovePostDialog extends StatelessWidget {
                   child: Text(
                     'Approve Post',
                     style: TextStyle(
-                      fontFamily: 'Arial',
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                       height: 1.0,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
                 Positioned(
@@ -85,73 +83,72 @@ class ApprovePostDialog extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Text(
-              'Are you sure you want to approve the post from $businessName?',
-              style: const TextStyle(
-                fontFamily: 'Arial',
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textSecondary,
-                height: 1.4285714285714286,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Are you sure you want to approve the post from $businessName?',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary,
+                  height: 1.4285714285714286,
+                ),
               ),
-              textAlign: TextAlign.left,
             ),
             const SizedBox(height: 16),
-            Column(
+            Row(
               children: [
-                InkWell(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onConfirm();
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    width: double.infinity,
-                    height: 37,
-                    decoration: BoxDecoration(
-                      color: AppColors.buttonApprove,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: const Center(
-                      child: Text(
-                        'Confirm',
-                        style: TextStyle(
-                          fontFamily: 'Arial',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.white,
-                          height: 1.4285714285714286,
+                Expanded(
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textPrimary,
+                            height: 1.4285714285714286,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 7.985),
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    width: double.infinity,
-                    height: 37,
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        width: 1.1,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onConfirm();
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.buttonApprove,
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: const Center(
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontFamily: 'Arial',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textPrimary,
-                          height: 1.4285714285714286,
+                      child: const Center(
+                        child: Text(
+                          'Confirm',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.white,
+                            height: 1.4285714285714286,
+                          ),
                         ),
                       ),
                     ),

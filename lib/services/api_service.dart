@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'storage_service.dart';
 
 /// Enum for different microservices
@@ -16,23 +17,44 @@ enum ServiceType {
 /// API Service for handling HTTP requests to multiple microservices
 class ApiService {
   // ============================================
-  // 🚀 PRODUCTION DEPLOYMENT CONFIGURATION
+  // 🚀 SMART PLATFORM DETECTION
   // ============================================
-  // TO DEPLOY TO PRODUCTION:
-  // 1. Change BASE_URL below to your production server IP or domain
-  // 2. Rebuild the app: flutter build apk --release (Android) or flutter build ios --release (iOS)
-  // 3. That's it! All microservices will automatically use the new URL
-  //
-  // EXAMPLES:
-  // Development (Local):     'http://192.168.0.180'
-  // Development (Emulator):  'http://10.0.2.2'
-  // Staging Server:          'http://staging.fluencepay.com'
-  // Production Server:       'https://api.fluencepay.com'
-  //
-  // NOTE: Do NOT include port numbers or trailing slashes in BASE_URL
+  // Automatically detects platform and uses correct URL:
+  // - Web: http://localhost (same machine)
+  // - Android Emulator: http://10.0.2.2 (host machine)
+  // - Android Device: http://192.168.0.180 (local network)
+  // - Production: https://api.fluencepay.com
   // ============================================
   
-  static const String BASE_URL = 'http://192.168.0.180'; // 👈 CHANGE THIS FOR PRODUCTION
+  // Production URL (set this when deploying to production)
+  static const String PRODUCTION_URL = 'https://api.fluencepay.com';
+  static const bool USE_PRODUCTION = false; // 👈 Set to true for production
+  
+  // Development URLs
+  static const String WEB_DEV_URL = 'http://localhost';
+  static const String ANDROID_EMULATOR_URL = 'http://10.0.2.2';
+  static const String ANDROID_DEVICE_URL = 'http://192.168.0.180'; // Your local IP
+  
+  /// Get base URL based on platform
+  /// Automatically detects and returns the correct URL
+  static String get BASE_URL {
+    if (USE_PRODUCTION) {
+      print('🌐 [API] Using PRODUCTION URL: $PRODUCTION_URL');
+      return PRODUCTION_URL;
+    }
+    
+    // Development mode - auto-detect platform
+    if (kIsWeb) {
+      // Running on web browser (Chrome, Edge, etc.)
+      print('🌐 [API] Platform: WEB - Using: $WEB_DEV_URL');
+      return WEB_DEV_URL;
+    } else {
+      // Running on Android/iOS
+      // Note: If using Android Emulator, change ANDROID_DEVICE_URL to ANDROID_EMULATOR_URL above
+      print('🌐 [API] Platform: MOBILE - Using: $ANDROID_DEVICE_URL');
+      return ANDROID_DEVICE_URL;
+    }
+  }
   
   // Service ports (these remain constant across all environments)
   static const Map<ServiceType, int> _servicePorts = {

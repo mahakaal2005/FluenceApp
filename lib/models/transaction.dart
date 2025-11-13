@@ -35,6 +35,7 @@ class Transaction extends Equatable {
 
   // Helper getters for UI
   String get businessName => metadata?['storeName'] ?? 'Unknown Business';
+  String get customerName => metadata?['customerName'] ?? metadata?['userName'] ?? 'Unknown Customer';
   DateTime? get settlementDate {
     if (status == 'completed') {
       return createdAt.add(const Duration(days: 2));

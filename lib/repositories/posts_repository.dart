@@ -7,15 +7,46 @@ class PostsRepository {
   PostsRepository({ApiService? apiService}) 
       : _apiService = apiService ?? ApiService();
 
-  // Get pending social posts for verification with raw data for duplicate detection
-  Future<List<Map<String, dynamic>>> getPendingSocialPostsWithMetadata() async {
+  // Get all social posts with optional filtering
+  Future<List<Map<String, dynamic>>> getAllSocialPostsWithMetadata({
+    int limit = 50,
+    int offset = 0,
+    String? status,
+    String? platformId,
+    String? userId,
+    String? startDate,
+    String? endDate,
+    String? postType,
+    String? search,
+  }) async {
     try {
-      print('📝 [POSTS] Fetching pending posts...');
+      print('📝 [POSTS] Fetching all posts...');
       print('   Service: social (port 4007)');
-      print('   Endpoint: api/admin/social/posts/pending');
+      print('   Endpoint: api/admin/social/posts');
+      print('   Filters: status=$status, limit=$limit, offset=$offset');
+      
+      // Build query parameters
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      };
+      
+      if (status != null) queryParams['status'] = status;
+      if (platformId != null) queryParams['platformId'] = platformId;
+      if (userId != null) queryParams['userId'] = userId;
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      if (postType != null) queryParams['postType'] = postType;
+      if (search != null) queryParams['search'] = search;
+      
+      // Build URL with query parameters
+      final queryString = queryParams.entries
+          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+      final endpoint = 'api/admin/social/posts?$queryString';
       
       final response = await _apiService.get(
-        'api/admin/social/posts/pending',
+        endpoint,
         service: ServiceType.social,
       );
 
@@ -29,18 +60,40 @@ class PostsRepository {
         // Check if data has posts array
         if (response['data'] is Map && response['data']['posts'] != null) {
           final posts = response['data']['posts'] as List;
+          final pagination = response['data']['pagination'];
           print('   Posts found: ${posts.length}');
-          if (posts.isNotEmpty) {
-            print('   First post keys: ${posts[0].keys.toList()}');
-            if (posts[0]['has_duplicates'] != null) {
-              print('   ✓ Duplicate detection data present');
+          print('   Total posts: ${pagination?['total'] ?? 'unknown'}');
+          
+          // Filter out posts without original_transaction_id
+          final validPosts = posts.where((post) {
+            final hasTransactionId = post['original_transaction_id'] != null;
+            if (!hasTransactionId) {
+              print('   ⚠️ Filtering out post ${post['id']} - missing transaction ID');
             }
+            return hasTransactionId;
+          }).toList();
+          
+          print('   Valid posts (with transaction ID): ${validPosts.length}');
+          if (validPosts.isNotEmpty) {
+            print('   First post keys: ${validPosts[0].keys.toList()}');
+            print('   First post status: ${validPosts[0]['status']}');
           }
-          return posts.map((post) => post as Map<String, dynamic>).toList();
+          return validPosts.map((post) => post as Map<String, dynamic>).toList();
         } else if (response['data'] is List) {
           final posts = response['data'] as List;
           print('   Posts found (direct array): ${posts.length}');
-          return posts.map((post) => post as Map<String, dynamic>).toList();
+          
+          // Filter out posts without original_transaction_id
+          final validPosts = posts.where((post) {
+            final hasTransactionId = post['original_transaction_id'] != null;
+            if (!hasTransactionId) {
+              print('   ⚠️ Filtering out post ${post['id']} - missing transaction ID');
+            }
+            return hasTransactionId;
+          }).toList();
+          
+          print('   Valid posts (with transaction ID): ${validPosts.length}');
+          return validPosts.map((post) => post as Map<String, dynamic>).toList();
         }
       }
       
@@ -48,13 +101,32 @@ class PostsRepository {
       return [];
     } catch (e) {
       print('❌ [POSTS] Error: $e');
-      throw Exception('Failed to fetch pending posts: $e');
+      throw Exception('Failed to fetch posts: $e');
     }
+  }
+
+  // Get pending posts only (convenience method)
+  Future<List<Map<String, dynamic>>> getPendingSocialPostsWithMetadata() async {
+    return getAllSocialPostsWithMetadata(status: 'pending_review');
   }
 
   // Legacy method for backward compatibility
   Future<List<SocialPost>> getPendingSocialPosts() async {
     final postsWithMetadata = await getPendingSocialPostsWithMetadata();
+    return postsWithMetadata.map((post) => SocialPost.fromJson(post)).toList();
+  }
+  
+  // Get all posts (convenience method)
+  Future<List<SocialPost>> getAllSocialPosts({
+    int limit = 50,
+    int offset = 0,
+    String? status,
+  }) async {
+    final postsWithMetadata = await getAllSocialPostsWithMetadata(
+      limit: limit,
+      offset: offset,
+      status: status,
+    );
     return postsWithMetadata.map((post) => SocialPost.fromJson(post)).toList();
   }
 
