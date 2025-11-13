@@ -54,6 +54,14 @@ class PostsLoaded extends PostsState {
   
   @override
   List<Object?> get props => [posts];
+  
+  // Helper getters for filtering
+  List<Post> get allPosts => posts;
+  List<Post> get pendingPosts => posts.where((p) => p.status == PostStatus.pending).toList();
+  List<Post> get approvedPosts => posts.where((p) => p.status == PostStatus.approved).toList();
+  List<Post> get rejectedPosts => posts.where((p) => p.status == PostStatus.rejected).toList();
+  
+  int get pendingCount => pendingPosts.length;
 }
 
 class PostsError extends PostsState {
@@ -110,13 +118,22 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
   Future<void> _onLoadPosts(LoadPosts event, Emitter<PostsState> emit) async {
     emit(PostsLoading());
     try {
-      final postsWithMetadata = await _repository.getPendingSocialPostsWithMetadata();
+      // Fetch ALL posts (pending, approved, rejected) from all users
+      final postsWithMetadata = await _repository.getAllSocialPostsWithMetadata(
+        limit: 100, // Fetch more posts to show complete picture
+        offset: 0,
+      );
       
       // Convert to UI models with raw data for duplicate detection
       final posts = postsWithMetadata.map((postData) {
         final socialPost = SocialPost.fromJson(postData);
         return Post.fromSocialPost(socialPost, rawData: postData);
       }).toList();
+      
+      print('📊 [POSTS_BLOC] Loaded ${posts.length} total posts');
+      print('   Pending: ${posts.where((p) => p.status == PostStatus.pending).length}');
+      print('   Approved: ${posts.where((p) => p.status == PostStatus.approved).length}');
+      print('   Rejected: ${posts.where((p) => p.status == PostStatus.rejected).length}');
       
       emit(PostsLoaded(posts));
     } catch (e) {

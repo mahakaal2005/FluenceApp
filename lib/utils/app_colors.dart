@@ -25,6 +25,8 @@ class AppColors {
   static const Color badgeOrange = Color(0xFFFFEDD4);
   static const Color badgeOrangeText = Color(0xFFCA3500);
   static const Color badgeTabYellow = Color(0xFFF0B100);
+  static const Color badgeBlue = Color(0xFFDBEAFE);
+  static const Color badgeBlueText = Color(0xFF1447E6);
   
   // Button colors
   static const Color buttonApprove = Color(0xFF00A63E);

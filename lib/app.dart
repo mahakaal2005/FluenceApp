@@ -8,6 +8,7 @@ import 'blocs/users_bloc.dart';
 import 'blocs/posts_bloc.dart';
 import 'blocs/transactions_bloc.dart';
 import 'blocs/dashboard_bloc.dart';
+import 'blocs/activity_feed_bloc.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -30,6 +31,9 @@ class App extends StatelessWidget {
         ),
         BlocProvider<DashboardBloc>(
           create: (context) => DashboardBloc(),
+        ),
+        BlocProvider<ActivityFeedBloc>(
+          create: (context) => ActivityFeedBloc(),
         ),
       ],
       child: MaterialApp(

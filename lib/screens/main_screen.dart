@@ -6,9 +6,15 @@ import 'posts_tab.dart';
 import 'content_tab.dart';
 import 'payments_tab.dart';
 import 'profile_screen.dart';
+import 'web/web_dashboard_screen.dart';
+import 'web/web_content_screen.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive_helper.dart';
 import '../blocs/auth_bloc.dart';
+import '../blocs/content_bloc.dart';
+import '../blocs/notification_recipients_bloc.dart';
 import '../repositories/notifications_repository.dart';
+import '../widgets/web/web_main_layout.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,11 +27,18 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   int _unreadNotificationCount = 0;
   int _contentTabIndex = 0; // Track which sub-tab to show in ContentTab
+  String? _postIdToOpen; // Track post ID to open after navigation
   final NotificationsRepository _notificationsRepository = NotificationsRepository();
 
-  void _navigateToTab(int index) {
+  void _navigateToTab(int index, {String? postId, int? contentTabIndex}) {
     setState(() {
       _currentIndex = index;
+      if (postId != null) {
+        _postIdToOpen = postId;
+      }
+      if (contentTabIndex != null) {
+        _contentTabIndex = contentTabIndex;
+      }
     });
   }
 
@@ -34,9 +47,52 @@ class _MainScreenState extends State<MainScreen> {
       onNavigateToTab: _navigateToTab,
     ),
     const UsersTab(),
-    const PostsTab(),
+    PostsTab(postIdToOpen: _postIdToOpen),
     const PaymentsTab(),
-    ContentTab(initialTabIndex: _contentTabIndex),
+    MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => ContentBloc(
+            onNotificationsViewed: _loadUnreadCount,
+          )..add(const RefreshAll()),
+        ),
+        BlocProvider(
+          create: (context) => NotificationRecipientsBloc(),
+        ),
+      ],
+      child: ContentTab(initialTabIndex: _contentTabIndex),
+    ),
+  ];
+  
+  List<Widget> get _webTabs => [
+    WebDashboardScreen(
+      onNavigateToTab: _navigateToTab,
+    ),
+    const UsersTab(),
+    PostsTab(postIdToOpen: _postIdToOpen),
+    const PaymentsTab(),
+    MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => ContentBloc()..add(const RefreshAll()),
+        ),
+        BlocProvider(
+          create: (context) => NotificationRecipientsBloc(),
+        ),
+      ],
+      child: WebContentScreen(
+        initialTabIndex: _contentTabIndex,
+        onNotificationsViewed: _loadUnreadCount,
+      ),
+    ),
+  ];
+  
+  List<String> get _tabTitles => [
+    'Dashboard',
+    'User & Merchant Management',
+    'Posts',
+    'Payments',
+    'Content & Communications',
   ];
 
   @override
@@ -47,16 +103,20 @@ class _MainScreenState extends State<MainScreen> {
     _loadUnreadCount();
   }
 
+  // Load unseen admin notification count (only notifications RECEIVED by admin, not sent by admin)
   Future<void> _loadUnreadCount() async {
     try {
+      print('🔄 [MainScreen] Loading unread count...');
       final count = await _notificationsRepository.getUnreadCount();
+      print('📊 [MainScreen] Got count: $count');
       if (mounted) {
         setState(() {
           _unreadNotificationCount = count;
+          print('✅ [MainScreen] Updated badge count to: $count');
         });
       }
     } catch (e) {
-      print('❌ Failed to load unread count: $e');
+      print('❌ Failed to load unseen notification count: $e');
     }
   }
 
@@ -68,6 +128,35 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if we should show web layout
+    if (ResponsiveHelper.shouldShowWebLayout(context)) {
+      return WebMainLayout(
+        currentIndex: _currentIndex,
+        onNavigate: _navigateToTab,
+        title: _tabTitles[_currentIndex],
+        unreadNotificationCount: _unreadNotificationCount,
+        onNotificationTap: () {
+          setState(() {
+            _contentTabIndex = 1; // Notifications tab
+            _currentIndex = 4; // Content tab
+          });
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _loadUnreadCount();
+          });
+        },
+        onProfileTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProfileScreen(),
+            ),
+          );
+        },
+        child: _webTabs[_currentIndex],
+      );
+    }
+    
+    // Mobile layout (existing)
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(

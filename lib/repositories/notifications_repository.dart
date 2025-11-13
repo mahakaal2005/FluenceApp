@@ -44,12 +44,53 @@ class NotificationsRepository {
     }
   }
 
-  // Send notification to all users (Admin)
+  // Get sent notifications with read statistics (Admin)
+  Future<List<Map<String, dynamic>>> getSentNotificationsWithStats({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      print('🔍 Fetching sent notifications with stats...');
+      
+      final queryParams = <String, String>{
+        'limit': limit.toString(),
+        'offset': ((page - 1) * limit).toString(),
+      };
+      
+      final query = queryParams.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('&');
+      
+      print('🌐 API call: api/notifications/sent-with-stats?$query');
+      
+      final response = await _apiService.get(
+        'api/notifications/sent-with-stats?$query',
+        service: ServiceType.notification,
+      );
+
+      print('📡 Response received: ${response['success']}');
+      
+      if (response['success'] == true && response['data'] != null) {
+        final notifications = response['data']['notifications'] as List;
+        print('✅ Sent notifications fetched: ${notifications.length}');
+        return notifications.cast<Map<String, dynamic>>();
+      }
+      
+      print('⚠️ No sent notifications data in response');
+      return [];
+    } catch (e) {
+      print('❌ Error fetching sent notifications: $e');
+      throw Exception('Failed to fetch sent notifications: $e');
+    }
+  }
+
+  // Send notification to all users (Admin) - immediately or scheduled
   Future<void> sendNotification({
     required String title,
     required String message,
     String type = 'in_app',
     Map<String, dynamic>? data,
+    DateTime? scheduledAt,
   }) async {
     try {
       await _apiService.post(
@@ -59,6 +100,7 @@ class NotificationsRepository {
           'message': message,
           'type': type,
           if (data != null) 'data': data,
+          if (scheduledAt != null) 'scheduledAt': scheduledAt.toIso8601String(),
         },
         service: ServiceType.notification,
       );
@@ -67,7 +109,9 @@ class NotificationsRepository {
     }
   }
 
-  // Get unread notification count
+  // Get unseen admin notification count
+  // Only counts notifications RECEIVED by admin (not sent by admin)
+  // Filters by admin category notifications (admin_new_post, admin_new_merchant_application, etc.)
   Future<int> getUnreadCount() async {
     try {
       final response = await _apiService.get(
@@ -81,6 +125,21 @@ class NotificationsRepository {
       return 0;
     } catch (e) {
       throw Exception('Failed to fetch unread count: $e');
+    }
+  }
+
+  // Mark all admin notifications as opened/viewed
+  // Only marks notifications RECEIVED by admin (not sent by admin)
+  // This should be called when admin views their notifications list
+  Future<void> markAllAsOpened() async {
+    try {
+      await _apiService.put(
+        'api/notifications/opened-all',
+        {},
+        service: ServiceType.notification,
+      );
+    } catch (e) {
+      throw Exception('Failed to mark notifications as opened: $e');
     }
   }
 

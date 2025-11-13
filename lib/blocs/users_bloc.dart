@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import '../models/user.dart';
 import '../repositories/users_repository.dart';
+import '../models/user.dart';
 
 // Events
 abstract class UsersEvent extends Equatable {
@@ -12,40 +12,35 @@ abstract class UsersEvent extends Equatable {
 }
 
 class LoadUsers extends UsersEvent {
-  final String? statusFilter;
-  
-  const LoadUsers({this.statusFilter});
-  
-  @override
-  List<Object?> get props => [statusFilter];
+  const LoadUsers();
 }
 
 class ApproveUser extends UsersEvent {
-  final String applicationId;
-  
-  const ApproveUser(this.applicationId);
-  
+  final String userId;
+
+  const ApproveUser(this.userId);
+
   @override
-  List<Object?> get props => [applicationId];
+  List<Object?> get props => [userId];
 }
 
 class RejectUser extends UsersEvent {
-  final String applicationId;
+  final String userId;
   final String reason;
-  
-  const RejectUser(this.applicationId, this.reason);
-  
+
+  const RejectUser(this.userId, this.reason);
+
   @override
-  List<Object?> get props => [applicationId, reason];
+  List<Object?> get props => [userId, reason];
 }
 
 class SuspendUser extends UsersEvent {
-  final String merchantId;
-  
-  const SuspendUser(this.merchantId);
-  
+  final String userId;
+
+  const SuspendUser(this.userId);
+
   @override
-  List<Object?> get props => [merchantId];
+  List<Object?> get props => [userId];
 }
 
 // States
@@ -56,64 +51,58 @@ abstract class UsersState extends Equatable {
   List<Object?> get props => [];
 }
 
-class UsersInitial extends UsersState {}
+class UsersInitial extends UsersState {
+  const UsersInitial();
+}
 
-class UsersLoading extends UsersState {}
+class UsersLoading extends UsersState {
+  const UsersLoading();
+}
 
 class UsersLoaded extends UsersState {
-  final List<AdminUser> users;
-  final String? currentFilter;
-  
-  const UsersLoaded(this.users, {this.currentFilter});
-  
+  final List<AdminUser> allUsers;
+  final List<AdminUser> pendingUsers;
+  final List<AdminUser> approvedUsers;
+  final List<AdminUser> suspendedUsers;
+
+  const UsersLoaded({
+    required this.allUsers,
+    required this.pendingUsers,
+    required this.approvedUsers,
+    required this.suspendedUsers,
+  });
+
   @override
-  List<Object?> get props => [users, currentFilter];
-  
-  // Helper getters for filtering
-  List<AdminUser> get allUsers => users;
-  List<AdminUser> get pendingUsers => users.where((u) => u.status == 'pending').toList();
-  List<AdminUser> get approvedUsers => users.where((u) => u.status == 'approved').toList();
-  List<AdminUser> get suspendedUsers => users.where((u) => u.status == 'suspended').toList();
-  
+  List<Object?> get props => [allUsers, pendingUsers, approvedUsers, suspendedUsers];
+
   int get pendingCount => pendingUsers.length;
 }
 
 class UsersError extends UsersState {
   final String message;
-  
+
   const UsersError(this.message);
-  
+
   @override
   List<Object?> get props => [message];
 }
 
-class UserActionLoading extends UsersState {
-  final List<AdminUser> users;
-  final String actionType;
-  
-  const UserActionLoading(this.users, this.actionType);
-  
-  @override
-  List<Object?> get props => [users, actionType];
-}
-
 class UserActionSuccess extends UsersState {
-  final List<AdminUser> users;
   final String message;
-  
-  const UserActionSuccess(this.users, this.message);
-  
+
+  const UserActionSuccess(this.message);
+
   @override
-  List<Object?> get props => [users, message];
+  List<Object?> get props => [message];
 }
 
 // BLoC
 class UsersBloc extends Bloc<UsersEvent, UsersState> {
-  final UsersRepository _repository;
+  final UsersRepository _usersRepository;
 
-  UsersBloc({UsersRepository? repository})
-      : _repository = repository ?? UsersRepository(),
-        super(UsersInitial()) {
+  UsersBloc({UsersRepository? usersRepository})
+      : _usersRepository = usersRepository ?? UsersRepository(),
+        super(const UsersInitial()) {
     on<LoadUsers>(_onLoadUsers);
     on<ApproveUser>(_onApproveUser);
     on<RejectUser>(_onRejectUser);
@@ -121,111 +110,133 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   }
 
   Future<void> _onLoadUsers(LoadUsers event, Emitter<UsersState> emit) async {
-    emit(UsersLoading());
+    emit(const UsersLoading());
+
     try {
-      final users = await _repository.getMerchantApplications(
-        status: event.statusFilter,
-        limit: 100, // Get all for admin panel
-      );
-      emit(UsersLoaded(users, currentFilter: event.statusFilter));
+      // Fetch both regular users and merchants simultaneously
+      final results = await Future.wait([
+        _usersRepository.getRegularUsers(limit: 100),
+        _usersRepository.getMerchantApplications(limit: 100),
+      ]);
+
+      final regularUsers = results[0];
+      final merchants = results[1];
+
+      // Combine both lists
+      final allUsers = [...regularUsers, ...merchants];
+
+      // Filter by status
+      final pending = allUsers.where((u) => u.status == 'pending').toList();
+      final approved = allUsers.where((u) => u.status == 'approved' || u.status == 'active').toList();
+      final suspended = allUsers.where((u) => u.status == 'suspended' || u.status == 'rejected').toList();
+
+      print('📊 [USERS] Loaded summary:');
+      print('   Regular users: ${regularUsers.length}');
+      print('   Merchants: ${merchants.length}');
+      print('   Total: ${allUsers.length}');
+      print('   Pending: ${pending.length}');
+      print('   Approved/Active: ${approved.length}');
+      print('   Suspended/Rejected: ${suspended.length}');
+
+      emit(UsersLoaded(
+        allUsers: allUsers,
+        pendingUsers: pending,
+        approvedUsers: approved,
+        suspendedUsers: suspended,
+      ));
     } catch (e) {
+      print('❌ [USERS] Error loading users: $e');
       emit(UsersError(e.toString()));
     }
   }
 
   Future<void> _onApproveUser(ApproveUser event, Emitter<UsersState> emit) async {
-    if (state is UsersLoaded) {
-      final currentState = state as UsersLoaded;
-      emit(UserActionLoading(currentState.users, 'approve'));
-      
-      try {
-        await _repository.approveMerchantApplication(event.applicationId);
+    try {
+      // Find the user to determine if it's a regular user or merchant
+      final currentState = state;
+      if (currentState is UsersLoaded) {
+        final user = currentState.allUsers.firstWhere(
+          (u) => u.id == event.userId,
+          orElse: () => throw Exception('User not found'),
+        );
         
-        // Update the user status locally
-        final updatedUsers = currentState.users.map((user) {
-          if (user.id == event.applicationId) {
-            return AdminUser(
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              phone: user.phone,
-              status: 'approved',
-              joinDate: user.joinDate,
-              company: user.company,
-              businessType: user.businessType,
-            );
-          }
-          return user;
-        }).toList();
-        
-        emit(UserActionSuccess(updatedUsers, 'User approved successfully'));
-        emit(UsersLoaded(updatedUsers, currentFilter: currentState.currentFilter));
-      } catch (e) {
-        emit(UsersError('Failed to approve user: $e'));
-        emit(UsersLoaded(currentState.users, currentFilter: currentState.currentFilter));
+        if (user.userType == 'user') {
+          // Approve regular user via auth service
+          await _usersRepository.approveUser(event.userId);
+        } else {
+          // Approve merchant application via merchant service
+          await _usersRepository.approveMerchantApplication(event.userId);
+        }
       }
+      
+      emit(const UserActionSuccess('User approved successfully'));
+      add(const LoadUsers()); // Reload users
+    } catch (e) {
+      print('❌ [USERS] Error approving user: $e');
+      emit(UsersError(e.toString()));
     }
   }
 
   Future<void> _onRejectUser(RejectUser event, Emitter<UsersState> emit) async {
-    if (state is UsersLoaded) {
-      final currentState = state as UsersLoaded;
-      emit(UserActionLoading(currentState.users, 'reject'));
-      
-      try {
-        await _repository.rejectMerchantApplication(event.applicationId, event.reason);
+    try {
+      // Find the user to determine if it's a regular user or merchant
+      final currentState = state;
+      if (currentState is UsersLoaded) {
+        final user = currentState.allUsers.firstWhere(
+          (u) => u.id == event.userId,
+          orElse: () => throw Exception('User not found'),
+        );
         
-        // Remove the rejected user from the list
-        final updatedUsers = currentState.users
-            .where((user) => user.id != event.applicationId)
-            .toList();
-        
-        emit(UserActionSuccess(updatedUsers, 'User rejected successfully'));
-        emit(UsersLoaded(updatedUsers, currentFilter: currentState.currentFilter));
-      } catch (e) {
-        emit(UsersError('Failed to reject user: $e'));
-        emit(UsersLoaded(currentState.users, currentFilter: currentState.currentFilter));
+        if (user.userType == 'user') {
+          // Reject regular user via auth service
+          await _usersRepository.rejectUser(event.userId, event.reason);
+        } else {
+          // Reject merchant application via merchant service
+          await _usersRepository.rejectMerchantApplication(event.userId, event.reason);
+        }
       }
+      
+      emit(const UserActionSuccess('User rejected successfully'));
+      add(const LoadUsers()); // Reload users
+    } catch (e) {
+      print('❌ [USERS] Error rejecting user: $e');
+      emit(UsersError(e.toString()));
     }
   }
 
   Future<void> _onSuspendUser(SuspendUser event, Emitter<UsersState> emit) async {
-    if (state is UsersLoaded) {
-      final currentState = state as UsersLoaded;
-      emit(UserActionLoading(currentState.users, 'suspend'));
-      
-      try {
-        await _repository.suspendMerchant(event.merchantId);
+    try {
+      // Find the user to determine if it's a regular user or merchant
+      final currentState = state;
+      if (currentState is UsersLoaded) {
+        final user = currentState.allUsers.firstWhere(
+          (u) => u.id == event.userId,
+          orElse: () => throw Exception('User not found'),
+        );
         
-        // Update the user status locally
-        final updatedUsers = currentState.users.map((user) {
-          if (user.id == event.merchantId) {
-            return AdminUser(
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              phone: user.phone,
-              status: 'suspended',
-              joinDate: user.joinDate,
-              company: user.company,
-              businessType: user.businessType,
-            );
-          }
-          return user;
-        }).toList();
+        String successMessage;
+        if (user.userType == 'user') {
+          // Suspend regular user via auth service
+          await _usersRepository.suspendUser(event.userId);
+          successMessage = 'User suspended successfully';
+        } else {
+          // Suspend merchant via merchant service
+          await _usersRepository.suspendMerchant(event.userId);
+          successMessage = 'Merchant suspended successfully';
+        }
         
-        emit(UserActionSuccess(updatedUsers, 'User suspended successfully'));
-        emit(UsersLoaded(updatedUsers, currentFilter: currentState.currentFilter));
-      } catch (e) {
-        emit(UsersError('Failed to suspend user: $e'));
-        emit(UsersLoaded(currentState.users, currentFilter: currentState.currentFilter));
+        emit(UserActionSuccess(successMessage));
+        add(const LoadUsers()); // Reload users
       }
+    } catch (e) {
+      print('❌ [USERS] Error suspending user: $e');
+      emit(UsersError(e.toString()));
     }
   }
 
   @override
   Future<void> close() {
-    _repository.dispose();
+    _usersRepository.dispose();
     return super.close();
   }
 }

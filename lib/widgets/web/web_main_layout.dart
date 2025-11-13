@@ -1,0 +1,86 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../constants/web_design_constants.dart';
+import '../../blocs/auth_bloc.dart';
+import 'web_sidebar.dart';
+import 'web_top_bar.dart';
+
+class WebMainLayout extends StatelessWidget {
+  final int currentIndex;
+  final Function(int) onNavigate;
+  final Widget child;
+  final String title;
+  final int unreadNotificationCount;
+  final VoidCallback onNotificationTap;
+  final VoidCallback onProfileTap;
+  
+  const WebMainLayout({
+    super.key,
+    required this.currentIndex,
+    required this.onNavigate,
+    required this.child,
+    required this.title,
+    this.unreadNotificationCount = 0,
+    required this.onNotificationTap,
+    required this.onProfileTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: WebDesignConstants.webBackground,
+      body: Row(
+        children: [
+          // Sidebar
+          WebSidebar(
+            currentIndex: currentIndex,
+            onNavigate: onNavigate,
+            onLogout: () {
+              // Show confirmation dialog
+              showDialog(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to logout?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        context.read<AuthBloc>().add(AuthLogoutRequested());
+                      },
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          
+          // Main content area
+          Expanded(
+            child: Column(
+              children: [
+                // Top bar
+                WebTopBar(
+                  title: title,
+                  unreadNotificationCount: unreadNotificationCount,
+                  onNotificationTap: onNotificationTap,
+                  onProfileTap: onProfileTap,
+                ),
+                
+                // Content
+                Expanded(
+                  child: child,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

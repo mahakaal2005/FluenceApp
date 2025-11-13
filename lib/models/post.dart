@@ -107,21 +107,33 @@ class Post {
       latitude: latitude,
       longitude: longitude,
       timestamp: socialPost.createdAt ?? DateTime.now(),
-      status: socialPost.status == 'pending_review' ? PostStatus.pending : PostStatus.approved,
+      status: _mapStatus(socialPost.status),
       alertMessage: _getAlertMessage(latitude, longitude, rawData),
       alertType: _getAlertType(latitude, longitude, rawData),
     );
   }
 
+  static PostStatus _mapStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending_review':
+      case 'pending':
+        return PostStatus.pending;
+      case 'approved':
+        return PostStatus.approved;
+      case 'rejected':
+        return PostStatus.rejected;
+      default:
+        return PostStatus.pending;
+    }
+  }
+
   static String? _getAlertMessage(double lat, double lng, Map<String, dynamic>? rawData) {
-    // Check for duplicates first (higher priority)
+    // Check for duplicates
     if (rawData != null && rawData['has_duplicates'] == true) {
       return 'Possible duplicate post detected';
     }
     
-    // Check GPS coordinates
-    if (lat == 0.0 && lng == 0.0) return 'Invalid GPS coordinates';
-    
+    // GPS coordinates check removed - no longer showing GPS validation warnings
     return null;
   }
 
@@ -131,9 +143,7 @@ class Post {
       return AlertType.warning;
     }
     
-    // Invalid GPS is an error
-    if (lat == 0.0 && lng == 0.0) return AlertType.error;
-    
+    // GPS validation removed - no longer checking for invalid GPS coordinates
     return null;
   }
 }
@@ -141,6 +151,7 @@ class Post {
 enum PostStatus {
   pending,
   approved,
+  rejected,
 }
 
 enum AlertType {
