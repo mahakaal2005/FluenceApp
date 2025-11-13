@@ -3,10 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_constants.dart';
 import '../blocs/dashboard_bloc.dart';
+import '../blocs/activity_feed_bloc.dart';
+import '../blocs/notification_recipients_bloc.dart';
+import '../models/recent_activity.dart';
 import '../widgets/send_notification_dialog.dart';
+import 'activity_feed_screen.dart';
 
 class DashboardTab extends StatefulWidget {
-  final Function(int)? onNavigateToTab;
+  final Function(int, {String? postId, int? contentTabIndex})? onNavigateToTab;
   
   const DashboardTab({super.key, this.onNavigateToTab});
 
@@ -338,7 +342,10 @@ class _DashboardTabState extends State<DashboardTab> {
                   // Open send notification dialog
                   showDialog(
                     context: context,
-                    builder: (context) => const SendNotificationDialog(),
+                    builder: (context) => BlocProvider(
+                      create: (context) => NotificationRecipientsBloc(),
+                      child: const SendNotificationDialog(),
+                    ),
                   );
                 },
               ),
@@ -418,31 +425,56 @@ class _DashboardTabState extends State<DashboardTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Recent Activity',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Recent Activity',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final bloc = context.read<ActivityFeedBloc>();
+                  bloc.add(const LoadActivities());
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BlocProvider.value(
+                        value: bloc,
+                        child: ActivityFeedScreen(
+                          onNavigateToTab: widget.onNavigateToTab,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('View All'),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           ...data.recentActivities.map((activity) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildActivityItem(
-              iconPath: activity.iconPath,
-              iconBgColor: _getActivityColor(activity.iconBgColor),
-              title: activity.title,
-              subtitle: activity.subtitle,
-              time: activity.time,
-            ),
-          )),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildActivityItem(
+                  activity: activity,
+                  iconPath: activity.iconPath,
+                  iconBgColor: _getActivityColor(activity.iconBgColor),
+                  title: activity.title,
+                  subtitle: activity.subtitle,
+                  time: activity.time,
+                ),
+              )),
         ],
       ),
     );
   }
 
   Widget _buildActivityItem({
+    required RecentActivity activity,
     required String iconPath,
     required Color iconBgColor,
     required String title,
@@ -508,9 +540,101 @@ class _DashboardTabState extends State<DashboardTab> {
               ],
             ),
           ),
+          // Show Review button only for pending items
+          Builder(
+            builder: (context) {
+              final shouldShowButton = activity.isPending && 
+                                      activity.entityId != null && 
+                                      activity.entityData != null;
+              
+              // Debug logging
+              if (activity.status != null) {
+                print('🔘 [ACTIVITY_ITEM] ${activity.title}');
+                print('   Status: ${activity.status} | isPending: ${activity.isPending}');
+                print('   entityId: ${activity.entityId}');
+                print('   hasEntityData: ${activity.entityData != null}');
+                print('   → Show Review Button: $shouldShowButton');
+              }
+              
+              if (!shouldShowButton) return const SizedBox.shrink();
+              
+              return TextButton(
+                onPressed: () {
+                  print('🎯 [REVIEW_BUTTON] Button clicked!');
+                  _handleReviewNavigation(activity);
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Review',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.white,
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
+  }
+
+  void _handleReviewNavigation(RecentActivity activity) {
+    print('🔍 [REVIEW_NAVIGATION] Handling review navigation...');
+    print('   Entity ID: ${activity.entityId}');
+    print('   Entity Type: ${activity.entityType}');
+    print('   Status: ${activity.status}');
+    
+    final entityType = activity.entityType?.toLowerCase();
+    final entityId = activity.entityId;
+    
+    if (entityType == null || entityId == null) {
+      print('   ⚠️  Missing entityType or entityId, defaulting to Users tab');
+      widget.onNavigateToTab?.call(1);
+      return;
+    }
+    
+    switch (entityType) {
+      case 'post':
+        // Navigate to Posts tab and open post detail dialog
+        print('   → Navigating to Posts tab with postId: $entityId');
+        widget.onNavigateToTab?.call(2, postId: entityId);
+        break;
+        
+      case 'user':
+      case 'merchant':
+        // Navigate to Users tab
+        print('   → Navigating to Users tab');
+        widget.onNavigateToTab?.call(1);
+        break;
+        
+      case 'transaction':
+        // Navigate to Payments tab
+        print('   → Navigating to Payments tab');
+        widget.onNavigateToTab?.call(3);
+        break;
+        
+      case 'notification':
+        // Navigate to Content tab → Notifications sub-tab (index 1)
+        print('   → Navigating to Content tab → Notifications sub-tab');
+        widget.onNavigateToTab?.call(4, contentTabIndex: 1);
+        break;
+        
+      default:
+        // Default to Users tab for unknown entity types
+        print('   ⚠️  Unknown entityType: $entityType, defaulting to Users tab');
+        widget.onNavigateToTab?.call(1);
+        break;
+    }
   }
 
   String _formatNumber(int number) {

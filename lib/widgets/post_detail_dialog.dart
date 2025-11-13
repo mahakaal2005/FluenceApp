@@ -15,30 +15,85 @@ class PostDetailDialog extends StatelessWidget {
     this.onReject,
   });
 
+  Widget _buildPostImage() {
+    final imagePath = post.imageAssetPath;
+    if (imagePath.isNotEmpty && imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: AppColors.badgeGray,
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppColors.badgeGray,
+            child: const Icon(
+              Icons.image,
+              color: AppColors.textSecondary,
+              size: 60,
+            ),
+          );
+        },
+      );
+    }
+
+    if (imagePath.isNotEmpty) {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppColors.badgeGray,
+            child: const Icon(
+              Icons.image,
+              color: AppColors.textSecondary,
+              size: 60,
+            ),
+          );
+        },
+      );
+    }
+
+    return Container(
+      color: AppColors.badgeGray,
+      child: const Icon(
+        Icons.image,
+        color: AppColors.textSecondary,
+        size: 60,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        width: 355,
+        width: 512,
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: Colors.black.withValues(alpha: 0.1),
-            width: 1.1,
+            width: 0.8,
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 15,
+              blurRadius: 6,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              offset: const Offset(0, -4),
+              blurRadius: 15,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -47,23 +102,20 @@ class PostDetailDialog extends StatelessWidget {
           children: [
             // Header with title and close button
             Padding(
-              padding: const EdgeInsets.all(25),
+              padding: const EdgeInsets.fromLTRB(24.8, 24.8, 24.8, 0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Spacer(),
                   const Text(
                     'Post Details',
                     style: TextStyle(
-                      fontFamily: 'Arial',
+                      fontFamily: 'Poppins',
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                       height: 1,
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                  const Spacer(),
                   Opacity(
                     opacity: 0.7,
                     child: InkWell(
@@ -88,60 +140,55 @@ class PostDetailDialog extends StatelessWidget {
             Flexible(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(25, 0, 25, 25),
+                  padding: const EdgeInsets.fromLTRB(24.8, 16, 24.8, 24.8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Post Image
                       Container(
-                        height: 256,
+                        height: 320,
                         decoration: BoxDecoration(
                           color: AppColors.badgeGray,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            post.imageAssetPath,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: AppColors.badgeGray,
-                                child: const Icon(
-                                  Icons.image,
-                                  color: AppColors.textSecondary,
-                                  size: 60,
-                                ),
-                              );
-                            },
-                          ),
+                          child: _buildPostImage(),
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Details Section
+                      // Details Section - 2 Column Layout
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Merchant
-                          _buildDetailRow(
-                            label: 'Merchant',
-                            value: post.businessName,
+                          // Row 1: Merchant and User
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _buildDetailRow(
+                                  label: 'Merchant',
+                                  value: post.businessName,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildDetailRow(
+                                  label: 'User',
+                                  value: post.username,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          // User
-                          _buildDetailRow(
-                            label: 'User',
-                            value: post.username,
-                          ),
-                          const SizedBox(height: 12),
-                          // Caption
+                          const SizedBox(height: 16),
+                          // Caption (Full Width)
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 'Caption',
                                 style: TextStyle(
-                                  fontFamily: 'Arial',
+                                  fontFamily: 'Poppins',
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   color: AppColors.textSecondary,
@@ -152,7 +199,7 @@ class PostDetailDialog extends StatelessWidget {
                               Text(
                                 post.description,
                                 style: const TextStyle(
-                                  fontFamily: 'Arial',
+                                  fontFamily: 'Poppins',
                                   fontSize: 16,
                                   fontWeight: FontWeight.w400,
                                   color: AppColors.textPrimary,
@@ -161,41 +208,11 @@ class PostDetailDialog extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          // GPS Location and Timestamp Row
+                          const SizedBox(height: 16),
+                          // Row 2: Timestamp
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // GPS Location
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'GPS Location',
-                                      style: TextStyle(
-                                        fontFamily: 'Arial',
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w400,
-                                        color: AppColors.textSecondary,
-                                        height: 1.43,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${post.latitude.toStringAsFixed(6)}, ${post.longitude.toStringAsFixed(6)}',
-                                      style: const TextStyle(
-                                        fontFamily: 'Arial',
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w400,
-                                        color: AppColors.textPrimary,
-                                        height: 1.43,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              // Timestamp
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +220,7 @@ class PostDetailDialog extends StatelessWidget {
                                     const Text(
                                       'Timestamp',
                                       style: TextStyle(
-                                        fontFamily: 'Arial',
+                                        fontFamily: 'Poppins',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w400,
                                         color: AppColors.textSecondary,
@@ -215,7 +232,7 @@ class PostDetailDialog extends StatelessWidget {
                                       DateFormat('dd MMM, hh:mm a')
                                           .format(post.timestamp),
                                       style: const TextStyle(
-                                        fontFamily: 'Arial',
+                                        fontFamily: 'Poppins',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w400,
                                         color: AppColors.textPrimary,
@@ -269,7 +286,7 @@ class PostDetailDialog extends StatelessWidget {
                                       const Text(
                                         'Approve Post',
                                         style: TextStyle(
-                                          fontFamily: 'Arial',
+                                          fontFamily: 'Poppins',
                                           fontSize: 14,
                                           fontWeight: FontWeight.w400,
                                           color: AppColors.white,
@@ -319,7 +336,7 @@ class PostDetailDialog extends StatelessWidget {
                                       const Text(
                                         'Reject Post',
                                         style: TextStyle(
-                                          fontFamily: 'Arial',
+                                          fontFamily: 'Poppins',
                                           fontSize: 14,
                                           fontWeight: FontWeight.w400,
                                           color: AppColors.white,
@@ -355,7 +372,7 @@ class PostDetailDialog extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontFamily: 'Arial',
+            fontFamily: 'Poppins',
             fontSize: 14,
             fontWeight: FontWeight.w400,
             color: AppColors.textSecondary,
@@ -366,7 +383,7 @@ class PostDetailDialog extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            fontFamily: 'Arial',
+            fontFamily: 'Poppins',
             fontSize: 16,
             fontWeight: FontWeight.w400,
             color: AppColors.textPrimary,

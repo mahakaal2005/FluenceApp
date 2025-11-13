@@ -39,23 +39,27 @@ class AdminUser extends Equatable {
   final String id;
   final String name;
   final String email;
-  final String? phone;
+  final String phone;
   final String status;
   final DateTime joinDate;
+  final String userType; // 'user' or 'merchant'
   final DateTime? lastActive;
   final String? company;
   final String? businessType;
+  final String? location;
 
   const AdminUser({
     required this.id,
     required this.name,
     required this.email,
-    this.phone,
+    required this.phone,
     required this.status,
     required this.joinDate,
+    required this.userType,
     this.lastActive,
     this.company,
     this.businessType,
+    this.location,
   });
 
   factory AdminUser.fromJson(Map<String, dynamic> json) => _$AdminUserFromJson(json);
@@ -63,5 +67,5 @@ class AdminUser extends Equatable {
   Map<String, dynamic> toJson() => _$AdminUserToJson(this);
 
   @override
-  List<Object?> get props => [id, name, email, phone, status, joinDate, lastActive, company, businessType];
+  List<Object?> get props => [id, name, email, phone, status, joinDate, userType, lastActive, company, businessType, location];
 }
