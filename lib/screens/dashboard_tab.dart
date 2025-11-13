@@ -4,7 +4,6 @@ import '../utils/app_colors.dart';
 import '../utils/app_constants.dart';
 import '../blocs/dashboard_bloc.dart';
 import '../blocs/activity_feed_bloc.dart';
-import '../blocs/notification_recipients_bloc.dart';
 import '../models/recent_activity.dart';
 import '../widgets/send_notification_dialog.dart';
 import 'activity_feed_screen.dart';
@@ -342,10 +341,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   // Open send notification dialog
                   showDialog(
                     context: context,
-                    builder: (context) => BlocProvider(
-                      create: (context) => NotificationRecipientsBloc(),
-                      child: const SendNotificationDialog(),
-                    ),
+                    builder: (context) => const SendNotificationDialog(),
                   );
                 },
               ),
