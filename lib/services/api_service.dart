@@ -23,14 +23,19 @@ class ApiService {
   // - Web: http://localhost (same machine)
   // - Android Emulator: http://10.0.2.2 (host machine)
   // - Android Device: http://192.168.0.180 (local network)
+  // - Remote Backend: https://161.248.37.235 (nginx reverse proxy, no ports)
   // - Production: https://api.fluencepay.com
   // ============================================
+  
+  // Remote Backend Configuration (nginx reverse proxy)
+  static const String REMOTE_BACKEND_URL = 'https://161.248.37.235';
+  static const bool USE_REMOTE_BACKEND = true; // 👈 Set to true to use remote backend (no ports needed)
   
   // Production URL (set this when deploying to production)
   static const String PRODUCTION_URL = 'https://api.fluencepay.com';
   static const bool USE_PRODUCTION = false; // 👈 Set to true for production
   
-  // Development URLs
+  // Development URLs (for localhost development)
   static const String WEB_DEV_URL = 'http://localhost';
   static const String ANDROID_EMULATOR_URL = 'http://10.0.2.2';
   static const String ANDROID_DEVICE_URL = 'http://192.168.0.180'; // Your local IP
@@ -38,12 +43,20 @@ class ApiService {
   /// Get base URL based on platform
   /// Automatically detects and returns the correct URL
   static String get BASE_URL {
+    // Priority 1: Remote Backend (nginx reverse proxy - no ports needed)
+    if (USE_REMOTE_BACKEND) {
+      print('🌐 [API] Using REMOTE BACKEND URL: $REMOTE_BACKEND_URL');
+      print('   Note: No ports needed - nginx routes via /api/ paths');
+      return REMOTE_BACKEND_URL;
+    }
+    
+    // Priority 2: Production URL
     if (USE_PRODUCTION) {
       print('🌐 [API] Using PRODUCTION URL: $PRODUCTION_URL');
       return PRODUCTION_URL;
     }
     
-    // Development mode - auto-detect platform
+    // Priority 3: Development mode - auto-detect platform
     if (kIsWeb) {
       // Running on web browser (Chrome, Edge, etc.)
       print('🌐 [API] Platform: WEB - Using: $WEB_DEV_URL');
@@ -56,7 +69,7 @@ class ApiService {
     }
   }
   
-  // Service ports (these remain constant across all environments)
+  // Service ports (only used for localhost development)
   static const Map<ServiceType, int> _servicePorts = {
     ServiceType.auth: 4001,
     ServiceType.cashback: 4002,
@@ -68,7 +81,15 @@ class ApiService {
   };
   
   /// Get the full URL for a specific service
+  /// When using remote backend, no ports are needed - nginx routes via /api/ paths
   static String _getServiceUrl(ServiceType service) {
+    // If using remote backend, return base URL without port
+    // Backend uses nginx reverse proxy that routes based on /api/ paths
+    if (USE_REMOTE_BACKEND) {
+      return BASE_URL; // No port needed - nginx handles routing
+    }
+    
+    // For localhost development, append port number
     final port = _servicePorts[service]!;
     return '$BASE_URL:$port';
   }
@@ -89,11 +110,14 @@ class ApiService {
   }) async {
     try {
       final baseUrl = _getServiceUrl(service);
-      final fullUrl = '$baseUrl/$endpoint';
+      // Ensure endpoint doesn't start with / to avoid double slashes
+      final cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+      final fullUrl = '$baseUrl/$cleanEndpoint';
       
       print('🌐 [API] GET Request');
       print('   URL: $fullUrl');
       print('   Service: $service');
+      print('   Endpoint: $cleanEndpoint');
       
       final headers = await _getHeaders();
       print('   Headers: ${headers.keys.toList()}');
@@ -112,6 +136,22 @@ class ApiService {
     } catch (e) {
       print('❌ [API] GET Request failed: $e');
       print('   Error type: ${e.runtimeType}');
+      print('   Error details: ${e.toString()}');
+      
+      // Provide more detailed error information for web CORS/SSL issues
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('failed to fetch') || 
+          errorString.contains('cors') ||
+          errorString.contains('network') ||
+          errorString.contains('socketexception')) {
+        print('⚠️ [API] This looks like a CORS or network connectivity issue.');
+        print('   Possible causes:');
+        print('   1. CORS not configured on backend - Backend needs to allow your origin');
+        print('   2. SSL certificate issue - Backend may be using self-signed certificate');
+        print('   3. Network connectivity - Server may not be reachable');
+        print('   Check browser console (F12) for more details');
+      }
+      
       throw _handleError(e);
     }
   }
@@ -124,11 +164,14 @@ class ApiService {
   }) async {
     try {
       final baseUrl = _getServiceUrl(service);
-      final fullUrl = '$baseUrl/$endpoint';
+      // Ensure endpoint doesn't start with / to avoid double slashes
+      final cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+      final fullUrl = '$baseUrl/$cleanEndpoint';
       
       print('🌐 [API] POST Request');
       print('   URL: $fullUrl');
       print('   Service: $service');
+      print('   Endpoint: $cleanEndpoint');
       
       final headers = await _getHeaders();
       print('   Headers: ${headers.keys.toList()}');
@@ -145,8 +188,24 @@ class ApiService {
       
       return _handleResponse(response);
     } catch (e) {
-      print('❌ [API] Request failed: $e');
+      print('❌ [API] POST Request failed: $e');
       print('   Error type: ${e.runtimeType}');
+      print('   Error details: ${e.toString()}');
+      
+      // Provide more detailed error information for web CORS/SSL issues
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('failed to fetch') || 
+          errorString.contains('cors') ||
+          errorString.contains('network') ||
+          errorString.contains('socketexception')) {
+        print('⚠️ [API] This looks like a CORS or network connectivity issue.');
+        print('   Possible causes:');
+        print('   1. CORS not configured on backend - Backend needs to allow your origin');
+        print('   2. SSL certificate issue - Backend may be using self-signed certificate');
+        print('   3. Network connectivity - Server may not be reachable');
+        print('   Check browser console (F12) for more details');
+      }
+      
       throw _handleError(e);
     }
   }
@@ -309,11 +368,26 @@ class ApiService {
       return error;
     }
     
-    // Network/timeout errors
-    if (error.toString().contains('SocketException') ||
-        error.toString().contains('TimeoutException')) {
+    final errorString = error.toString().toLowerCase();
+    
+    // CORS or network connectivity errors (common in web)
+    if (errorString.contains('failed to fetch') ||
+        errorString.contains('cors') ||
+        errorString.contains('networkerror') ||
+        errorString.contains('socketexception')) {
       return NetworkException(
-        'Connection failed. Please check your internet connection.',
+        'Connection failed. This could be due to:\n'
+        '1. CORS not configured on backend (backend needs to allow your origin)\n'
+        '2. SSL certificate issue (check browser console for details)\n'
+        '3. Server not reachable\n\n'
+        'Error: ${error.toString()}',
+      );
+    }
+    
+    // Network/timeout errors
+    if (errorString.contains('timeoutexception')) {
+      return NetworkException(
+        'Request timed out. Please check your internet connection and try again.',
       );
     }
     

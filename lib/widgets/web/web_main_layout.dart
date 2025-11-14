@@ -7,7 +7,7 @@ import 'web_top_bar.dart';
 
 class WebMainLayout extends StatelessWidget {
   final int currentIndex;
-  final Function(int) onNavigate;
+  final Function(int, {String? postId, int? contentTabIndex}) onNavigate;
   final Widget child;
   final String title;
   final int unreadNotificationCount;
@@ -70,6 +70,16 @@ class WebMainLayout extends StatelessWidget {
                   unreadNotificationCount: unreadNotificationCount,
                   onNotificationTap: onNotificationTap,
                   onProfileTap: onProfileTap,
+                  onNavigateToTab: (tabIndex, itemId) {
+                    // Handle navigation from search results
+                    if (itemId != null && tabIndex == 2) {
+                      // Posts tab - pass postId to open specific post
+                      onNavigate(tabIndex, postId: itemId);
+                    } else {
+                      // Other tabs - just navigate
+                      onNavigate(tabIndex);
+                    }
+                  },
                 ),
                 
                 // Content

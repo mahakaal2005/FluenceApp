@@ -14,6 +14,7 @@ class UsersTab extends StatefulWidget {
 class _UsersTabState extends State<UsersTab> {
   String _selectedTab = 'All';
   String _selectedUserType = 'All'; // 'All', 'Users', 'Merchants'
+  String _searchQuery = '';
   final TextEditingController _rejectReasonController = TextEditingController();
 
   @override
@@ -432,7 +433,9 @@ class _UsersTabState extends State<UsersTab> {
                 ),
                 textAlignVertical: TextAlignVertical.center, // Center text vertically
                 onChanged: (value) {
-                  // TODO: Implement search functionality
+                  setState(() {
+                    _searchQuery = value;
+                  });
                 },
               ),
             ),
@@ -816,6 +819,19 @@ class _UsersTabState extends State<UsersTab> {
     );
   }
 
+  /// Check if a user matches the search query
+  bool _userMatchesSearch(AdminUser user, String query) {
+    if (query.trim().isEmpty) return true;
+    final lowerQuery = query.toLowerCase().trim();
+    
+    return user.name.toLowerCase().contains(lowerQuery) ||
+           user.email.toLowerCase().contains(lowerQuery) ||
+           user.phone.toLowerCase().contains(lowerQuery) ||
+           (user.company?.toLowerCase().contains(lowerQuery) ?? false) ||
+           (user.businessType?.toLowerCase().contains(lowerQuery) ?? false) ||
+           (user.location?.toLowerCase().contains(lowerQuery) ?? false);
+  }
+
   List<AdminUser> _getFilteredUsers(UsersLoaded state) {
     List<AdminUser> users;
     
@@ -838,15 +854,25 @@ class _UsersTabState extends State<UsersTab> {
     }
     
     // Then filter by user type
+    List<AdminUser> typeFiltered;
     switch (_selectedUserType) {
       case 'Users':
-        return users.where((u) => u.userType == 'user').toList();
+        typeFiltered = users.where((u) => u.userType == 'user').toList();
+        break;
       case 'Merchants':
-        return users.where((u) => u.userType == 'merchant').toList();
+        typeFiltered = users.where((u) => u.userType == 'merchant').toList();
+        break;
       case 'All':
       default:
-        return users;
+        typeFiltered = users;
     }
+    
+    // Finally filter by search query if provided
+    if (_searchQuery.trim().isEmpty) {
+      return typeFiltered;
+    }
+    
+    return typeFiltered.where((user) => _userMatchesSearch(user, _searchQuery)).toList();
   }
 
   Widget _buildTab(String label, {int? badge}) {

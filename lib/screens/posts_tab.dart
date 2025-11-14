@@ -20,6 +20,7 @@ class PostsTab extends StatefulWidget {
 class _PostsTabState extends State<PostsTab> {
   String _selectedTab = 'All';
   bool _hasOpenedPost = false;
+  String _searchQuery = '';
   
   @override
   void initState() {
@@ -186,84 +187,43 @@ class _PostsTabState extends State<PostsTab> {
     return Container(
       color: const Color(0xFFF5F5F5),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFFE5E7EB),
-                  width: 0.8,
-                ),
-              ),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search posts...',
-                  hintStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF717182),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    size: 16,
-                    color: Color(0xFF717182),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 0,
-                  ),
-                  isDense: true,
-                ),
-                textAlignVertical: TextAlignVertical.center,
-                onChanged: (value) {
-                  // TODO: Implement search functionality
-                },
-              ),
-            ),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFE5E7EB),
+            width: 0.8,
           ),
-          const SizedBox(width: 12),
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: const Color(0xFFE5E7EB),
-                width: 0.8,
-              ),
+        ),
+        child: TextField(
+          decoration: InputDecoration(
+            hintText: 'Search posts...',
+            hintStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF717182),
             ),
-            child: Row(
-              children: const [
-                Icon(
-                  Icons.filter_list,
-                  size: 16,
-                  color: Color(0xFF717182),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'All Posts',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF0A0A0A),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: Color(0xFF717182),
-                ),
-              ],
+            prefixIcon: const Icon(
+              Icons.search,
+              size: 16,
+              color: Color(0xFF717182),
             ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 0,
+            ),
+            isDense: true,
           ),
-        ],
+          textAlignVertical: TextAlignVertical.center,
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+        ),
       ),
     );
   }
@@ -360,19 +320,42 @@ class _PostsTabState extends State<PostsTab> {
     );
   }
 
+  /// Check if a post matches the search query
+  bool _postMatchesSearch(Post post, String query) {
+    if (query.trim().isEmpty) return true;
+    final lowerQuery = query.toLowerCase().trim();
+    
+    return post.username.toLowerCase().contains(lowerQuery) ||
+           post.businessName.toLowerCase().contains(lowerQuery) ||
+           post.description.toLowerCase().contains(lowerQuery);
+  }
+
   List<Post> _getFilteredPosts(PostsLoaded state) {
+    // First filter by tab status
+    List<Post> tabFiltered;
     switch (_selectedTab) {
       case 'All':
-        return state.allPosts;
+        tabFiltered = state.allPosts;
+        break;
       case 'Pending':
-        return state.pendingPosts;
+        tabFiltered = state.pendingPosts;
+        break;
       case 'Approved':
-        return state.approvedPosts;
+        tabFiltered = state.approvedPosts;
+        break;
       case 'Rejected':
-        return state.rejectedPosts;
+        tabFiltered = state.rejectedPosts;
+        break;
       default:
-        return state.allPosts;
+        tabFiltered = state.allPosts;
     }
+    
+    // Then filter by search query if provided
+    if (_searchQuery.trim().isEmpty) {
+      return tabFiltered;
+    }
+    
+    return tabFiltered.where((post) => _postMatchesSearch(post, _searchQuery)).toList();
   }
 
   /// Get maximum card width for responsive grid
