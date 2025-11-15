@@ -21,7 +21,7 @@ class PostsRepository {
   }) async {
     try {
       print('📝 [POSTS] Fetching all posts...');
-      print('   Service: social (port 4007)');
+      print('   Service: social');
       print('   Endpoint: api/admin/social/posts');
       print('   Filters: status=$status, limit=$limit, offset=$offset');
       

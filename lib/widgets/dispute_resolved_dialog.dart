@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/transaction.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_constants.dart';
 
 class DisputeResolvedDialog extends StatelessWidget {
   final Transaction transaction;
@@ -21,13 +22,24 @@ class DisputeResolvedDialog extends StatelessWidget {
   }
 
   String _formatAmount(double amount) {
+    // Format to 2 decimal places
+    final formatted = amount.toStringAsFixed(2);
+    
+    // Add comma separators for thousands if amount >= 1000
     if (amount >= 1000) {
-      return amount.toStringAsFixed(0).replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (Match m) => '${m[1]},',
-          );
+      final parts = formatted.split('.');
+      final integerPart = parts[0];
+      final decimalPart = parts.length > 1 ? parts[1] : '00';
+      
+      final formattedInteger = integerPart.replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]},',
+      );
+      
+      return '$formattedInteger.$decimalPart';
     }
-    return amount.toStringAsFixed(0);
+    
+    return formatted;
   }
 
   @override
@@ -197,7 +209,7 @@ class DisputeResolvedDialog extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '₹${_formatAmount(transaction.amount)}',
+                    '${AppConstants.currencySymbol} ${_formatAmount(transaction.amount)}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,

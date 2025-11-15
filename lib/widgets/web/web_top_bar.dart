@@ -5,6 +5,7 @@ import '../../models/global_search_result.dart';
 import '../../blocs/users_bloc.dart';
 import '../../blocs/posts_bloc.dart';
 import '../../blocs/transactions_bloc.dart';
+import '../../utils/app_constants.dart';
 
 class WebTopBar extends StatefulWidget {
   final String title;
@@ -150,7 +151,7 @@ class _WebTopBarState extends State<WebTopBar> {
             type: 'transaction',
             id: transaction.id,
             title: transaction.businessName,
-            subtitle: '\$${transaction.amount.toStringAsFixed(2)} - ${transaction.description}',
+            subtitle: '${AppConstants.currencySymbol} ${transaction.amount.toStringAsFixed(2)} - ${transaction.description}',
             icon: Icons.payment,
             tabIndex: 3, // Payments tab
           ));

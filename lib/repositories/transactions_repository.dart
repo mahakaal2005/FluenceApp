@@ -34,8 +34,9 @@ class TransactionsRepository {
 
       if (status != null) queryParams['status'] = status;
       if (type != null) queryParams['type'] = type;
-      if (startDate != null)
+      if (startDate != null) {
         queryParams['startDate'] = startDate.toIso8601String();
+      }
       if (endDate != null) queryParams['endDate'] = endDate.toIso8601String();
 
       final query = queryParams.entries
@@ -104,8 +105,9 @@ class TransactionsRepository {
 
       if (status != null) queryParams['status'] = status;
       if (type != null) queryParams['type'] = type;
-      if (startDate != null)
+      if (startDate != null) {
         queryParams['startDate'] = startDate.toIso8601String();
+      }
       if (endDate != null) queryParams['endDate'] = endDate.toIso8601String();
 
       final query = queryParams.entries
@@ -114,7 +116,7 @@ class TransactionsRepository {
 
       print('   Query: $query');
       print('   Endpoint: api/transactions?$query');
-      print('   Service: cashback (port 4002)');
+      print('   Service: cashback');
 
       final response = await _apiService.get(
         'api/transactions?$query',
@@ -169,8 +171,9 @@ class TransactionsRepository {
   }) async {
     try {
       final queryParams = <String, String>{};
-      if (startDate != null)
+      if (startDate != null) {
         queryParams['startDate'] = startDate.toIso8601String();
+      }
       if (endDate != null) queryParams['endDate'] = endDate.toIso8601String();
       if (type != null) queryParams['type'] = type;
 

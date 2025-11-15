@@ -4,6 +4,7 @@ import '../models/transaction.dart';
 import '../repositories/transactions_repository.dart';
 import '../blocs/transactions_bloc.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_constants.dart';
 import 'dispute_resolved_dialog.dart';
 
 class ManageDisputeDialog extends StatefulWidget {
@@ -35,13 +36,24 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
   }
 
   String _formatAmount(double amount) {
+    // Format to 2 decimal places
+    final formatted = amount.toStringAsFixed(2);
+    
+    // Add comma separators for thousands if amount >= 1000
     if (amount >= 1000) {
-      return amount.toStringAsFixed(0).replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (Match m) => '${m[1]},',
-          );
+      final parts = formatted.split('.');
+      final integerPart = parts[0];
+      final decimalPart = parts.length > 1 ? parts[1] : '00';
+      
+      final formattedInteger = integerPart.replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]},',
+      );
+      
+      return '$formattedInteger.$decimalPart';
     }
-    return amount.toStringAsFixed(0);
+    
+    return formatted;
   }
 
   Map<String, dynamic> _getStatusConfig(TransactionStatus status) {
@@ -301,7 +313,7 @@ class _ManageDisputeDialogState extends State<ManageDisputeDialog> {
                     ),
                   ),
                   Text(
-                    '₹${_formatAmount(widget.transaction.amount)}',
+                    '${AppConstants.currencySymbol} ${_formatAmount(widget.transaction.amount)}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,

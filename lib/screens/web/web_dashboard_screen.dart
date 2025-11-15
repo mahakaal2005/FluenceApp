@@ -328,7 +328,7 @@ class _WebDashboardScreenState extends State<WebDashboardScreen> {
         ),
         WebStatCard(
           title: 'Total Transactions',
-          value: '${AppConstants.currencySymbol}${_formatAmount(data.totalTransactionVolume)}',
+          value: '${AppConstants.currencySymbol} ${_formatAmount(data.totalTransactionVolume)}',
           badge: _formatGrowthBadge(data.transactionVolumeGrowth),
           badgeColor: _getGrowthColor(data.transactionVolumeGrowth),
           badgeTextColor: _getGrowthTextColor(data.transactionVolumeGrowth),

@@ -128,9 +128,12 @@ class Post {
   }
 
   static String? _getAlertMessage(double lat, double lng, Map<String, dynamic>? rawData) {
-    // Check for duplicates
+    // Check for duplicates: same user_id AND same platform_post_id
     if (rawData != null && rawData['has_duplicates'] == true) {
-      return 'Possible duplicate post detected';
+      final duplicateCount = rawData['duplicate_count'] ?? 1;
+      if (duplicateCount > 1) {
+        return 'Possible duplicate post detected';
+      }
     }
     
     // GPS coordinates check removed - no longer showing GPS validation warnings
@@ -139,8 +142,12 @@ class Post {
 
   static AlertType? _getAlertType(double lat, double lng, Map<String, dynamic>? rawData) {
     // Duplicates are warnings (not errors)
+    // Only show if there are actually multiple posts (duplicate_count > 1)
     if (rawData != null && rawData['has_duplicates'] == true) {
-      return AlertType.warning;
+      final duplicateCount = rawData['duplicate_count'] ?? 1;
+      if (duplicateCount > 1) {
+        return AlertType.warning;
+      }
     }
     
     // GPS validation removed - no longer checking for invalid GPS coordinates

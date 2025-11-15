@@ -124,6 +124,35 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
         offset: 0,
       );
       
+      // Check for duplicates: same user_id AND same platform_post_id
+      // Mark posts as duplicates if the same user posted the same platform post ID
+      final Map<String, List<Map<String, dynamic>>> duplicateMap = {};
+      
+      for (var postData in postsWithMetadata) {
+        final userId = postData['user_id']?.toString();
+        final platformPostId = postData['platform_post_id']?.toString();
+        
+        // Only check duplicates if both user_id and platform_post_id exist
+        if (userId != null && platformPostId != null && platformPostId.isNotEmpty) {
+          final key = '$userId|$platformPostId';
+          if (!duplicateMap.containsKey(key)) {
+            duplicateMap[key] = [];
+          }
+          duplicateMap[key]!.add(postData);
+        }
+      }
+      
+      // Mark posts as duplicates if there are multiple posts with same user_id + platform_post_id
+      for (var entry in duplicateMap.entries) {
+        if (entry.value.length > 1) {
+          // Multiple posts found with same user_id + platform_post_id
+          for (var postData in entry.value) {
+            postData['has_duplicates'] = true;
+            postData['duplicate_count'] = entry.value.length;
+          }
+        }
+      }
+      
       // Convert to UI models with raw data for duplicate detection
       final posts = postsWithMetadata.map((postData) {
         final socialPost = SocialPost.fromJson(postData);

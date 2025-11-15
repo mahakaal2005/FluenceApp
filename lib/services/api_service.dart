@@ -23,13 +23,13 @@ class ApiService {
   // - Web: http://localhost (same machine)
   // - Android Emulator: http://10.0.2.2 (host machine)
   // - Android Device: http://192.168.0.180 (local network)
-  // - Remote Backend: https://161.248.37.235 (nginx reverse proxy, no ports)
+  // - Remote Backend: http://161.248.37.235 (direct port access: 4001-4007)
   // - Production: https://api.fluencepay.com
   // ============================================
   
-  // Remote Backend Configuration (nginx reverse proxy)
-  static const String REMOTE_BACKEND_URL = 'https://161.248.37.235';
-  static const bool USE_REMOTE_BACKEND = true; // 👈 Set to true to use remote backend (no ports needed)
+  // Remote Backend Configuration (direct port access)
+  static const String REMOTE_BACKEND_URL = 'http://161.248.37.235';
+  static const bool USE_REMOTE_BACKEND = true; // 👈 Set to true to use remote backend (with ports)
   
   // Production URL (set this when deploying to production)
   static const String PRODUCTION_URL = 'https://api.fluencepay.com';
@@ -43,10 +43,10 @@ class ApiService {
   /// Get base URL based on platform
   /// Automatically detects and returns the correct URL
   static String get BASE_URL {
-    // Priority 1: Remote Backend (nginx reverse proxy - no ports needed)
+    // Priority 1: Remote Backend (direct port access)
     if (USE_REMOTE_BACKEND) {
       print('🌐 [API] Using REMOTE BACKEND URL: $REMOTE_BACKEND_URL');
-      print('   Note: No ports needed - nginx routes via /api/ paths');
+      print('   Note: Using direct port access (4001-4007)');
       return REMOTE_BACKEND_URL;
     }
     
@@ -69,7 +69,7 @@ class ApiService {
     }
   }
   
-  // Service ports (only used for localhost development)
+  // Service ports (used for both remote backend and localhost development)
   static const Map<ServiceType, int> _servicePorts = {
     ServiceType.auth: 4001,
     ServiceType.cashback: 4002,
@@ -79,18 +79,14 @@ class ApiService {
     ServiceType.referral: 4006,
     ServiceType.social: 4007,
   };
-  
+
   /// Get the full URL for a specific service
-  /// When using remote backend, no ports are needed - nginx routes via /api/ paths
+  /// When using remote backend, ports are appended directly (e.g., http://161.248.37.235:4001)
   static String _getServiceUrl(ServiceType service) {
-    // If using remote backend, return base URL without port
-    // Backend uses nginx reverse proxy that routes based on /api/ paths
-    if (USE_REMOTE_BACKEND) {
-      return BASE_URL; // No port needed - nginx handles routing
-    }
-    
-    // For localhost development, append port number
+    // Get the port for this service
     final port = _servicePorts[service]!;
+    
+    // Append port to base URL (works for both remote backend and localhost)
     return '$BASE_URL:$port';
   }
   
@@ -130,9 +126,9 @@ class ApiService {
       print('✅ [API] Response received');
       print('   Status: ${response.statusCode}');
       print('   Body length: ${response.body.length}');
-      print('   Body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      print('   Body: ${response.body}');
       
-      return _handleResponse(response);
+      return _handleResponse(response, endpoint: cleanEndpoint);
     } catch (e) {
       print('❌ [API] GET Request failed: $e');
       print('   Error type: ${e.runtimeType}');
@@ -185,8 +181,9 @@ class ApiService {
       print('✅ [API] Response received');
       print('   Status: ${response.statusCode}');
       print('   Body length: ${response.body.length}');
+      print('   Body: ${response.body}');
       
-      return _handleResponse(response);
+      return _handleResponse(response, endpoint: cleanEndpoint);
     } catch (e) {
       print('❌ [API] POST Request failed: $e');
       print('   Error type: ${e.runtimeType}');
@@ -274,7 +271,7 @@ class ApiService {
   }
 
   /// Handle HTTP response with proper error handling
-  Map<String, dynamic> _handleResponse(http.Response response) {
+  Map<String, dynamic> _handleResponse(http.Response response, {String? endpoint}) {
     // Success responses (200-299)
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) {
@@ -293,11 +290,26 @@ class ApiService {
     // Handle specific error status codes
     switch (response.statusCode) {
       case 401:
-        // Unauthorized - token expired or invalid
-        // Clear token and throw exception
-        _storageService.deleteToken();
+        // Unauthorized - try to get actual error message from response
+        String message = 'Session expired. Please login again.';
+        try {
+          final body = jsonDecode(response.body);
+          if (body['error'] != null) {
+            message = body['error'];
+          } else if (body['message'] != null) {
+            message = body['message'];
+          }
+        } catch (_) {
+          // If parsing fails, use default message
+        }
+        // Only clear token if this is NOT a login endpoint
+        // Login endpoints can return 401 for invalid credentials
+        final isLoginEndpoint = endpoint?.contains('/auth/firebase') ?? false;
+        if (!isLoginEndpoint) {
+          _storageService.deleteToken();
+        }
         throw UnauthorizedException(
-          'Session expired. Please login again.',
+          message,
           statusCode: 401,
         );
         
