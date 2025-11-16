@@ -124,6 +124,12 @@ class NotificationsRepository {
       }
       return 0;
     } catch (e) {
+      // Handle rate limiting gracefully - return 0 instead of throwing
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('429') || errorStr.contains('too many requests') || errorStr.contains('rate limit')) {
+        print('⚠️ [NotificationsRepo] Rate limited, skipping backend count');
+        return 0; // Return 0 instead of throwing - we'll use calculated count
+      }
       throw Exception('Failed to fetch unread count: $e');
     }
   }

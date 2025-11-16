@@ -99,15 +99,73 @@ class _WebContentScreenState extends State<WebContentScreen> {
         print('🔄 [WEB] Calling markAllAsOpened()...');
         await _notificationsRepository.markAllAsOpened();
         print('✅ [WEB] Marked all admin notifications as opened');
-        // Wait a bit to ensure database update has propagated
-        await Future.delayed(const Duration(milliseconds: 200));
-        // Notify parent to refresh badge count
+        
+        // Update local state immediately - mark all received notifications as read
+        // This avoids unnecessary API call and rate limiting
+        final now = DateTime.now();
+        for (var notif in receivedNotifications) {
+          // Only update if it's a received notification (not sent)
+          if (notif.status != 'sent') {
+            // Create updated notification with readAt set
+            final updatedNotif = NotificationModel(
+              id: notif.id,
+              type: notif.type,
+              title: notif.title,
+              message: notif.message,
+              status: notif.status,
+              readAt: now, // Mark as read
+              createdAt: notif.createdAt,
+              sentAt: notif.sentAt,
+              metadata: notif.metadata,
+              readCountFromBackend: notif.readCountFromBackend,
+            );
+            final index = receivedNotifications.indexWhere((n) => n.id == notif.id);
+            if (index != -1) {
+              receivedNotifications[index] = updatedNotif;
+            }
+          }
+        }
+        print('✅ [WEB] Updated ${receivedNotifications.length} notifications locally (marked as read)');
+        
+        // Wait a bit before notifying parent to ensure state is updated
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+        // Notify parent to refresh badge count (will recalculate from updated list)
         print('🔄 [WEB] Calling onNotificationsViewed callback...');
         widget.onNotificationsViewed?.call();
         print('✅ [WEB] Callback called');
       } catch (e) {
-        print('⚠️ [WEB] Failed to mark admin notifications as opened: $e');
-        // Don't fail the entire load if this fails
+        final errorStr = e.toString().toLowerCase();
+        if (errorStr.contains('429') || errorStr.contains('too many requests')) {
+          print('⚠️ [WEB] Rate limited when marking as read, but updated local state anyway');
+          // Still update local state even if API call fails
+          final now = DateTime.now();
+          for (var notif in receivedNotifications) {
+            if (notif.status != 'sent') {
+              final updatedNotif = NotificationModel(
+                id: notif.id,
+                type: notif.type,
+                title: notif.title,
+                message: notif.message,
+                status: notif.status,
+                readAt: now,
+                createdAt: notif.createdAt,
+                sentAt: notif.sentAt,
+                metadata: notif.metadata,
+                readCountFromBackend: notif.readCountFromBackend,
+              );
+              final index = receivedNotifications.indexWhere((n) => n.id == notif.id);
+              if (index != -1) {
+                receivedNotifications[index] = updatedNotif;
+              }
+            }
+          }
+          await Future.delayed(const Duration(milliseconds: 300));
+          widget.onNotificationsViewed?.call();
+        } else {
+          print('⚠️ [WEB] Failed to mark admin notifications as opened: $e');
+          // Don't fail the entire load if this fails
+        }
       }
 
       // Convert sent notifications to NotificationModel

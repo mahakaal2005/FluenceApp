@@ -49,12 +49,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Sensitive information
-*.env
-*.env.local
-.env
-.env.local
-.env.*.local
+
 
 # AI Assistant rules (keep these private)
 .clinerules/byterover-rules.md

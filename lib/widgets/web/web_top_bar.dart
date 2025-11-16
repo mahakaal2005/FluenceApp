@@ -14,7 +14,7 @@ class WebTopBar extends StatefulWidget {
   final VoidCallback onProfileTap;
   final Function(int, String?)? onNavigateToTab; // tabIndex, itemId
   
-  const WebTopBar({
+  WebTopBar({
     super.key,
     required this.title,
     this.unreadNotificationCount = 0,
@@ -32,16 +32,68 @@ class _WebTopBarState extends State<WebTopBar> {
   final FocusNode _searchFocusNode = FocusNode();
   List<GlobalSearchResult> _searchResults = [];
   bool _showSearchResults = false;
+  int _lastBadgeCount = -1; // Track last badge count to detect changes
   
   @override
   void initState() {
+    _lastBadgeCount = widget.unreadNotificationCount; // Initialize with current count
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _searchFocusNode.addListener(_onFocusChanged);
+    print('🔔 [WebTopBar] ========== initState ==========');
+    print('   📊 widget.unreadNotificationCount: ${widget.unreadNotificationCount}');
+    print('   🔑 widget.key: ${widget.key}');
+    print('   📍 State hashCode: ${hashCode}');
+    print('   📍 State identity: ${hashCode}');
+    print('   📍 Widget hashCode: ${widget.hashCode}');
+    print('🔔 [WebTopBar] ===============================');
+  }
+  
+  @override
+  void didUpdateWidget(WebTopBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    print('🔔 [WebTopBar] ========== didUpdateWidget ==========');
+    print('   📊 OLD widget.unreadNotificationCount: ${oldWidget.unreadNotificationCount}');
+    print('   📊 NEW widget.unreadNotificationCount: ${widget.unreadNotificationCount}');
+    print('   📊 State _lastBadgeCount: $_lastBadgeCount');
+    print('   🔑 OLD widget.key: ${oldWidget.key}');
+    print('   🔑 NEW widget.key: ${widget.key}');
+    print('   📍 State hashCode: ${hashCode}');
+    print('   📍 State identity: ${hashCode}');
+    print('   ⚖️ Values equal? ${oldWidget.unreadNotificationCount == widget.unreadNotificationCount}');
+    
+    // CRITICAL FIX: Update _lastBadgeCount when count changes
+    // This ensures we detect the change and force widget recreation
+    final countChanged = oldWidget.unreadNotificationCount != widget.unreadNotificationCount;
+    if (countChanged) {
+      print('   🔄 COUNT CHANGED: $_lastBadgeCount → ${widget.unreadNotificationCount}');
+      _lastBadgeCount = widget.unreadNotificationCount;
+    }
+    
+    // CRITICAL FIX: ALWAYS force rebuild to ensure widget tree is recreated
+    // This is especially important when count goes from >0 to 0 to remove old badge
+    print('   ✅ FORCING rebuild to ensure old badge is removed');
+    setState(() {
+      print('   ✅ setState() called - rebuild triggered');
+    });
+    print('🔔 [WebTopBar] ======================================');
+  }
+  
+  @override
+  void setState(VoidCallback fn) {
+    print('🔔 [WebTopBar] setState() called');
+    print('   📊 Current widget.unreadNotificationCount: ${widget.unreadNotificationCount}');
+    super.setState(fn);
+    print('🔔 [WebTopBar] setState() completed');
   }
   
   @override
   void dispose() {
+    print('🔔 [WebTopBar] ========== dispose() called ==========');
+    print('   📊 widget.unreadNotificationCount: ${widget.unreadNotificationCount}');
+    print('   🔑 widget.key: ${widget.key}');
+    print('   📍 State hashCode: ${hashCode}');
+    print('🔔 [WebTopBar] =====================================');
     _searchController.removeListener(_onSearchChanged);
     _searchFocusNode.removeListener(_onFocusChanged);
     _searchController.dispose();
@@ -178,6 +230,22 @@ class _WebTopBarState extends State<WebTopBar> {
 
   @override
   Widget build(BuildContext context) {
+    print('🔔 [WebTopBar] ========== build() called ==========');
+    print('   📊 widget.unreadNotificationCount: ${widget.unreadNotificationCount}');
+    print('   🔑 widget.key: ${widget.key}');
+    print('   📍 State hashCode: ${hashCode}');
+    print('   📍 State identity: ${hashCode}');
+    print('   📍 Context hashCode: ${context.hashCode}');
+    
+    // Post-frame callback to verify what's actually rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('🔔 [WebTopBar] ========== Post-Frame Callback ==========');
+      print('   📊 widget.unreadNotificationCount AFTER frame: ${widget.unreadNotificationCount}');
+      print('   🔍 Checking if badge should be visible: ${widget.unreadNotificationCount > 0}');
+      print('🔔 [WebTopBar] =========================================');
+    });
+    
+    print('🔔 [WebTopBar] ====================================');
     final children = <Widget>[
       Container(
         height: WebDesignConstants.topBarHeight,
@@ -306,60 +374,137 @@ class _WebTopBarState extends State<WebTopBar> {
               SizedBox(
                 width: 40,
                 height: 40,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(WebDesignConstants.radiusSmall),
-                      ),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Image.asset(
-                          'assets/images/notification_bell_icon.png',
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.notifications_outlined,
-                              color: WebDesignConstants.webTextPrimary,
-                              size: 40,
-                            );
-                          },
+                child: Builder(
+                  builder: (stackContext) {
+                    print('🔔 [WebTopBar] ========== Building Stack for Badge ==========');
+                    print('   📊 widget.unreadNotificationCount: ${widget.unreadNotificationCount}');
+                    print('   📊 Count > 0? ${widget.unreadNotificationCount > 0}');
+                    print('   🔑 Stack key: ValueKey("notification_stack_${widget.unreadNotificationCount}")');
+                    
+                    // CRITICAL FIX: Build children list dynamically based on count
+                    // This ensures old badge widgets are completely removed
+                    final timestamp = DateTime.now().millisecondsSinceEpoch;
+                    final stackChildren = <Widget>[
+                      Container(
+                        key: ValueKey('notification_button_container_$timestamp'),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(WebDesignConstants.radiusSmall),
                         ),
-                        onPressed: widget.onNotificationTap,
-                      ),
-                    ),
-                    // Badge - always show for testing, remove condition later
-                    if (widget.unreadNotificationCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          constraints: const BoxConstraints(minWidth: 20),
-                          height: 20,
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          decoration: BoxDecoration(
-                            color: WebDesignConstants.notificationRed,
-                            borderRadius: BorderRadius.circular(10),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Image.asset(
+                            'assets/images/notification_bell_icon.png',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.notifications_outlined,
+                                color: WebDesignConstants.webTextPrimary,
+                                size: 40,
+                              );
+                            },
                           ),
-                          child: Center(
-                            child: Text(
-                              widget.unreadNotificationCount > 9 ? '9+' : widget.unreadNotificationCount.toString(),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                height: 1.0,
+                          onPressed: widget.onNotificationTap,
+                        ),
+                      ),
+                    ];
+                    
+                    // CRITICAL FIX: ALWAYS add a badge widget (either visible or invisible)
+                    // Using a key that changes forces Flutter to dispose old widget completely
+                    final badgeKey = 'badge_${widget.unreadNotificationCount}_$timestamp';
+                    print('   🔑 Badge widget key: $badgeKey');
+                    
+                    if (widget.unreadNotificationCount > 0) {
+                      print('   ✅ Adding VISIBLE BADGE widget with count: ${widget.unreadNotificationCount}');
+                      final displayValue = widget.unreadNotificationCount > 9 
+                          ? '9+' 
+                          : widget.unreadNotificationCount.toString();
+                      
+                      stackChildren.add(
+                        Positioned(
+                          key: ValueKey(badgeKey),
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            key: ValueKey('badge_container_${widget.unreadNotificationCount}_$timestamp'),
+                            constraints: const BoxConstraints(minWidth: 20),
+                            height: 20,
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: WebDesignConstants.notificationRed,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                displayValue,
+                                key: ValueKey('badge_text_${widget.unreadNotificationCount}_$timestamp'),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  height: 1.0,
+                                ),
                               ),
                             ),
                           ),
                         ),
+                      );
+                      print('   ✅ Visible badge widget added');
+                    } else {
+                      print('   ❌ Count is 0 - Adding INVISIBLE badge widget to force removal');
+                      // Add invisible positioned widget with same position to replace old badge
+                      stackChildren.add(
+                        Positioned(
+                          key: ValueKey(badgeKey),
+                          right: 0,
+                          top: 0,
+                          child: IgnorePointer(
+                            child: Opacity(
+                              opacity: 0.0,
+                              child: Container(
+                                key: ValueKey('badge_empty_$timestamp'),
+                                width: 0,
+                                height: 0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                      print('   ✅ Invisible badge widget added');
+                    }
+                    
+                    print('   📊 Total Stack children count: ${stackChildren.length}');
+                    print('   📊 Stack children keys: ${stackChildren.map((w) => w.key).toList()}');
+                    print('🔔 [WebTopBar] ===========================================');
+                    
+                    // CRITICAL FIX: Use timestamp in key to force complete widget disposal
+                    // This ensures old badge widgets are ALWAYS removed from widget tree
+                    final stackKey = 'notification_stack_${widget.unreadNotificationCount}_$timestamp';
+                    final boundaryKey = 'notification_stack_boundary_${widget.unreadNotificationCount}_$timestamp';
+                    
+                    print('   🔑 Creating Stack with key: $stackKey (timestamp: $timestamp)');
+                    print('   🔑 Creating RepaintBoundary with key: $boundaryKey');
+                    
+                    // Update tracked count
+                    if (_lastBadgeCount != widget.unreadNotificationCount) {
+                      print('   🔄 Badge count changed from $_lastBadgeCount to ${widget.unreadNotificationCount}');
+                      _lastBadgeCount = widget.unreadNotificationCount;
+                    }
+                    
+                    return RepaintBoundary(
+                      key: ValueKey(boundaryKey),
+                      child: Stack(
+                        key: ValueKey(stackKey),
+                        clipBehavior: Clip.none,
+                        children: [
+                          ...stackChildren,
+                        ],
                       ),
-                  ],
+                    );
+                  },
                 ),
               ),
               
