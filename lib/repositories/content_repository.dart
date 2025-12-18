@@ -30,8 +30,6 @@ class ContentRepository {
           .map((e) => '${e.key}=${e.value}')
           .join('&');
       
-      print('🔍 FAQ Query: api/content/faq?$query');
-      
       final response = await _apiService.get(
         'api/content/faq?$query',
         service: ServiceType.notification,
@@ -43,7 +41,7 @@ class ContentRepository {
       }
       return [];
     } catch (e) {
-      print('❌ FAQ Repository Error: $e');
+      print('[ERROR] [ContentRepo] FAQ Repository Error: $e');
       throw Exception('Failed to fetch FAQs: $e');
     }
   }
@@ -72,7 +70,7 @@ class ContentRepository {
       }
       throw Exception('Failed to create FAQ');
     } catch (e) {
-      print('❌ Create FAQ Error: $e');
+      print('[ERROR] [ContentRepo] Create FAQ Error: $e');
       throw Exception('Failed to create FAQ: $e');
     }
   }
@@ -86,8 +84,6 @@ class ContentRepository {
     List<String>? tags,
   }) async {
     try {
-      print('🔄 Updating FAQ: $id');
-      
       final response = await _apiService.put(
         'api/content/faq/$id',
         {
@@ -100,12 +96,11 @@ class ContentRepository {
       );
 
       if (response['success'] == true && response['data'] != null) {
-        print('✅ FAQ updated successfully');
         return FAQ.fromJson(response['data'] as Map<String, dynamic>);
       }
       throw Exception('Failed to update FAQ');
     } catch (e) {
-      print('❌ Update FAQ Error: $e');
+      print('[ERROR] [ContentRepo] Update FAQ Error: $e');
       // Check if it's a 404 (endpoint not implemented yet)
       if (e.toString().contains('404') || e.toString().contains('Not found')) {
         throw Exception(
@@ -120,16 +115,12 @@ class ContentRepository {
   /// Delete an FAQ (Admin only)
   Future<void> deleteFAQ(String id) async {
     try {
-      print('🗑️ Deleting FAQ: $id');
-      
       await _apiService.delete(
         'api/content/faq/$id',
         service: ServiceType.notification,
       );
-      
-      print('✅ FAQ deleted successfully');
     } catch (e) {
-      print('❌ Delete FAQ Error: $e');
+      print('[ERROR] [ContentRepo] Delete FAQ Error: $e');
       // Check if it's a 404 (endpoint not implemented yet)
       if (e.toString().contains('404') || e.toString().contains('Not found')) {
         throw Exception(
@@ -166,7 +157,7 @@ class ContentRepository {
       }
       throw Exception('Terms & Conditions not found');
     } catch (e) {
-      print('❌ Terms Repository Error: $e');
+      print('[ERROR] [ContentRepo] Terms Repository Error: $e');
       throw Exception('Failed to fetch Terms & Conditions: $e');
     }
   }
@@ -195,7 +186,7 @@ class ContentRepository {
       }
       throw Exception('Failed to create Terms & Conditions');
     } catch (e) {
-      print('❌ Create Terms Error: $e');
+      print('[ERROR] [ContentRepo] Create Terms Error: $e');
       throw Exception('Failed to create Terms & Conditions: $e');
     }
   }

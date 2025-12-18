@@ -15,8 +15,6 @@ class UsersRepository {
     String? role,
     String? status,
   }) async {
-    print('👥 [USERS] getAllUsers called');
-    
     try {
       final queryParams = <String, String>{
         'page': page.toString(),
@@ -29,22 +27,14 @@ class UsersRepository {
           .map((e) => '${e.key}=${e.value}')
           .join('&');
       
-      print('   Endpoint: api/users?$query');
-      
       final response = await _apiService.get(
         'api/users?$query',
         service: ServiceType.auth,
       );
 
-      print('✅ [USERS] Response received');
-      print('   Success: ${response['success']}');
-      print('   Has data: ${response['data'] != null}');
-
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'] as Map<String, dynamic>;
         final users = data['users'] as List;
-        
-        print('   Total users count: ${users.length}');
         
         return users.map((user) {
           return {
@@ -64,11 +54,9 @@ class UsersRepository {
         }).toList();
       }
       
-      print('⚠️ [USERS] No valid data in response, returning empty list');
       return [];
     } catch (e) {
-      print('❌ [USERS] Error fetching users: $e');
-      print('   Error type: ${e.runtimeType}');
+      print('[ERROR] [USERS] Error fetching users: $e');
       throw Exception('Failed to fetch users: $e');
     }
   }
@@ -79,9 +67,6 @@ class UsersRepository {
     int limit = 100,
     String? status,
   }) async {
-    print('👥 [USERS] Fetching regular users...');
-    print('   Page: $page, Limit: $limit, Status: $status');
-    
     try {
       final queryParams = <String, String>{
         'page': page.toString(),
@@ -94,23 +79,14 @@ class UsersRepository {
           .map((e) => '${e.key}=${e.value}')
           .join('&');
       
-      print('   Query: $query');
-      print('   Endpoint: api/users?$query');
-      
       final response = await _apiService.get(
         'api/users?$query',
         service: ServiceType.auth,
       );
 
-      print('✅ [USERS] Response received');
-      print('   Success: ${response['success']}');
-      print('   Has data: ${response['data'] != null}');
-
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'] as Map<String, dynamic>;
         final users = data['users'] as List;
-        
-        print('📦 [USERS] Parsing ${users.length} regular users...');
         
         final adminUsers = users.map((user) {
           // Map is_approved field to status for UI
@@ -147,15 +123,12 @@ class UsersRepository {
           });
         }).toList();
         
-        print('✅ [USERS] Successfully parsed ${adminUsers.length} regular users');
         return adminUsers;
       }
       
-      print('⚠️ [USERS] No valid data in response, returning empty list');
       return [];
     } catch (e) {
-      print('❌ [USERS] Error fetching regular users: $e');
-      print('   Error type: ${e.runtimeType}');
+      print('[ERROR] [USERS] Error fetching regular users: $e');
       throw Exception('Failed to fetch regular users: $e');
     }
   }
@@ -166,9 +139,6 @@ class UsersRepository {
     int limit = 100,
     String? status,
   }) async {
-    print('👥 [USERS] Fetching merchant applications...');
-    print('   Page: $page, Limit: $limit, Status: $status');
-    
     try {
       final queryParams = <String, String>{
         'limit': limit.toString(),
@@ -180,33 +150,10 @@ class UsersRepository {
           .map((e) => '${e.key}=${e.value}')
           .join('&');
       
-      print('   Query: $query');
-      print('   Endpoint: api/admin/applications?$query');
-      
       final response = await _apiService.get(
         'api/admin/applications?$query',
         service: ServiceType.merchant,
       );
-
-      print('✅ [USERS] Response received');
-      print('   Success: ${response['success']}');
-      print('   Has data: ${response['data'] != null}');
-      
-      if (response['data'] != null) {
-        if (response['data'] is List) {
-          final items = response['data'] as List;
-          print('   Total items count: ${items.length}');
-          if (items.isNotEmpty) {
-            print('   First item: ${items[0]}');
-          }
-        } else if (response['data'] is Map) {
-          final data = response['data'] as Map<String, dynamic>;
-          if (data['merchants'] != null) {
-            final items = data['merchants'] as List;
-            print('   Total merchants count: ${items.length}');
-          }
-        }
-      }
 
       if (response['success'] == true && response['data'] != null) {
         List items;
@@ -220,8 +167,6 @@ class UsersRepository {
         } else {
           items = [];
         }
-        
-        print('📦 [USERS] Parsing ${items.length} merchant applications...');
         
         final users = items.map((item) {
           // Parse address if it's JSON format
@@ -245,15 +190,12 @@ class UsersRepository {
           });
         }).toList();
         
-        print('✅ [USERS] Successfully parsed ${users.length} merchant applications');
         return users;
       }
       
-      print('⚠️ [USERS] No valid data in response, returning empty list');
       return [];
     } catch (e) {
-      print('❌ [USERS] Error fetching merchants: $e');
-      print('   Error type: ${e.runtimeType}');
+      print('[ERROR] [USERS] Error fetching merchants: $e');
       throw Exception('Failed to fetch merchants: $e');
     }
   }
@@ -376,7 +318,6 @@ class UsersRepository {
       if (country.toString().isNotEmpty) parts.add(country.toString());
       
       final result = parts.isNotEmpty ? parts.join(', ') : '';
-      print('   ✅ Formatted address: $result');
       return result;
     }
     
@@ -411,22 +352,19 @@ class UsersRepository {
           if (country.toString().isNotEmpty) parts.add(country.toString());
           
           final result = parts.isNotEmpty ? parts.join(', ') : trimmed;
-          print('   ✅ Formatted address: $result');
           return result;
         } catch (e) {
-          print('   ❌ JSON parsing failed: $e');
+          print('[ERROR] [USERS] JSON parsing failed: $e');
           // If JSON parsing fails, return the original string
           return trimmed;
         }
       }
       
       // Not JSON, return as is
-      print('   ✅ Plain string address: $trimmed');
       return trimmed;
     }
     
     // Fallback: convert to string
-    print('   ⚠️ Unknown type, converting to string');
     return address.toString();
   }
 

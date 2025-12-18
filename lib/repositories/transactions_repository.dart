@@ -25,8 +25,6 @@ class TransactionsRepository {
     DateTime? endDate,
   }) async {
     try {
-      print('💰 [TRANSACTIONS] Fetching transactions with analytics...');
-
       final queryParams = <String, String>{
         'page': page.toString(),
         'limit': limit.toString(),
@@ -49,10 +47,6 @@ class TransactionsRepository {
       );
 
       if (response['success'] == true && response['data'] != null) {
-        print(
-          '💰 [TRANSACTIONS] Response data keys: ${response['data'].keys.toList()}',
-        );
-
         final transactions = (response['data']['transactions'] as List)
             .map((t) => Transaction.fromJson(t))
             .toList();
@@ -64,22 +58,13 @@ class TransactionsRepository {
 
         final analytics =
             response['data']['analytics'] as Map<String, dynamic>?;
-        print('💰 [TRANSACTIONS] Analytics object: $analytics');
-
-        if (analytics != null) {
-          print('💰 [TRANSACTIONS] Analytics keys: ${analytics.keys.toList()}');
-          print('💰 [TRANSACTIONS] totalVolume: ${analytics['totalVolume']}');
-          print('💰 [TRANSACTIONS] volumeGrowth: ${analytics['volumeGrowth']}');
-          print('💰 [TRANSACTIONS] growth: ${analytics['growth']}');
-        }
 
         return {'transactions': enrichedTransactions, 'analytics': analytics};
       }
 
-      print('⚠️ [TRANSACTIONS] No valid data in response');
       return {'transactions': <Transaction>[], 'analytics': null};
     } catch (e) {
-      print('❌ [TRANSACTIONS] Error: $e');
+      print('[ERROR] [TRANSACTIONS] Error: $e');
       throw Exception('Failed to fetch transactions: $e');
     }
   }
@@ -94,7 +79,6 @@ class TransactionsRepository {
     DateTime? endDate,
   }) async {
     try {
-      print('💰 [TRANSACTIONS] Fetching transactions...');
       print('   Page: $page, Limit: $limit');
       print('   Status: $status, Type: $type');
 
@@ -114,39 +98,18 @@ class TransactionsRepository {
           .map((e) => '${e.key}=${e.value}')
           .join('&');
 
-      print('   Query: $query');
-      print('   Endpoint: api/transactions?$query');
-      print('   Service: cashback');
-
       final response = await _apiService.get(
         'api/transactions?$query',
         service: ServiceType.cashback,
       );
 
-      print('✅ [TRANSACTIONS] Response received');
-      print('   Success: ${response['success']}');
-      print('   Has data: ${response['data'] != null}');
-      print('   Response keys: ${response.keys.toList()}');
-
       if (response['success'] == true && response['data'] != null) {
-        print('   Data keys: ${response['data'].keys.toList()}');
-
-        // Store analytics if present
-        Map<String, dynamic>? analytics;
-        if (response['data']['analytics'] != null) {
-          analytics = response['data']['analytics'] as Map<String, dynamic>;
-          print('   Analytics: $analytics');
-        }
-
         if (response['data']['transactions'] != null) {
           final transactions = response['data']['transactions'] as List;
-          print('   Transactions found: ${transactions.length}');
           final transactionsList = transactions
               .map((t) => Transaction.fromJson(t))
               .toList();
 
-          // Return both transactions and analytics
-          // We'll need to modify the return type
           return transactionsList;
         } else if (response['data'] is List) {
           final transactions = response['data'] as List;
@@ -155,10 +118,9 @@ class TransactionsRepository {
         }
       }
 
-      print('⚠️ [TRANSACTIONS] No transactions found, returning empty list');
       return [];
     } catch (e) {
-      print('❌ [TRANSACTIONS] Error: $e');
+      print('[ERROR] [TRANSACTIONS] Error: $e');
       throw Exception('Failed to fetch transactions: $e');
     }
   }
@@ -274,7 +236,6 @@ class TransactionsRepository {
   /// Internal method to fetch merchant profile from API
   Future<String?> _fetchMerchantProfile(String merchantId) async {
     try {
-      print('🏪 [MERCHANT] Fetching profile for merchant ID: $merchantId');
 
       final response = await _apiService.get(
         'api/profiles/admin/$merchantId',
@@ -291,16 +252,14 @@ class TransactionsRepository {
             profileData['name'] as String?;
 
         if (businessName != null && businessName.isNotEmpty) {
-          print('✅ [MERCHANT] Found business name: $businessName');
           return businessName;
         }
       }
 
-      print('⚠️ [MERCHANT] No business name found for merchant: $merchantId');
       return null;
     } catch (e) {
       // Log error but don't throw - gracefully handle missing merchants
-      print('❌ [MERCHANT] Failed to fetch profile for $merchantId: $e');
+      print('[ERROR] [MERCHANT] Failed to fetch profile for $merchantId: $e');
       return null;
     }
   }
@@ -326,11 +285,9 @@ class TransactionsRepository {
         .toList();
 
     if (merchantIds.isEmpty) {
-      print('⚠️ [MERCHANT] No merchant IDs found in transactions');
       return transactions;
     }
 
-    print('🏪 [MERCHANT] Found ${merchantIds.length} unique merchant IDs');
 
     // Fetch all merchant names in parallel
     final merchantNameFutures = merchantIds.map((merchantId) async {
@@ -347,7 +304,6 @@ class TransactionsRepository {
       }
     }
 
-    print('✅ [MERCHANT] Fetched ${merchantNameMap.length} merchant names');
 
     // Update transaction metadata with merchant names
     final enrichedTransactions = transactions.map((transaction) {
@@ -381,7 +337,6 @@ class TransactionsRepository {
   /// Clear merchant name cache (useful for testing or forced refresh)
   void clearMerchantCache() {
     _merchantNameCache.clear();
-    print('🗑️ [MERCHANT] Cache cleared');
   }
 
   void dispose() {

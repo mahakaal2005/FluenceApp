@@ -9,21 +9,13 @@ class SessionsRepository {
   /// Get active sessions count and growth from auth service
   Future<Map<String, dynamic>> getActiveSessions() async {
     try {
-      print('🔐 [SESSIONS] Fetching active sessions from auth service...');
-      
       final response = await _apiService.get(
         'api/auth/sessions/active',
         service: ServiceType.auth,
       );
 
-      print('✅ [SESSIONS] Response received');
-      print('   Success: ${response['success']}');
-      print('   Has data: ${response['data'] != null}');
-
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'] as Map<String, dynamic>;
-        print('   Active sessions: ${data['activeSessions']}');
-        print('   Growth: ${data['growth']}%');
         
         return {
           'activeSessions': data['activeSessions'] ?? 0,
@@ -33,7 +25,6 @@ class SessionsRepository {
         };
       }
       
-      print('⚠️ [SESSIONS] No valid data in response, returning defaults');
       return {
         'activeSessions': 0,
         'growth': 0.0,
@@ -41,7 +32,7 @@ class SessionsRepository {
         'previousSessions': 0,
       };
     } catch (e) {
-      print('❌ [SESSIONS] Error fetching active sessions: $e');
+      print('[ERROR] [SESSIONS] Error fetching active sessions: $e');
       return {
         'activeSessions': 0,
         'growth': 0.0,
@@ -65,7 +56,7 @@ class SessionsRepository {
       
       return {};
     } catch (e) {
-      print('❌ [SESSIONS] Error fetching session stats: $e');
+      print('[ERROR] [SESSIONS] Error fetching session stats: $e');
       return {};
     }
   }

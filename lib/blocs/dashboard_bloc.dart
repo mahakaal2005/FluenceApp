@@ -219,16 +219,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   Future<Map<String, dynamic>> _loadUsersData(DashboardType dashboardType) async {
     try {
       if (dashboardType == DashboardType.users) {
-        // Fetch from auth service - all users
-        print('\n📊 [DASHBOARD_DATA] Loading Users Data from Auth Service...');
         return await _loadAllUsersData();
       } else {
-        // Fetch from merchant service - merchant applications
-        print('\n📊 [DASHBOARD_DATA] Loading Merchant Applications Data...');
         return await _loadMerchantApplicationsData();
       }
     } catch (e) {
-      print('❌ [DASHBOARD_DATA] Users data error: $e');
+      print('[ERROR] [DASHBOARD_DATA] Users data error: $e');
       return {
         'total': 0, 
         'growth': 0.0,
@@ -243,7 +239,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       // Fetch all users from auth service with role='user' (regular app users, not merchants)
       final allUsersResponse = await _usersRepository.getAllUsers(limit: 1000, role: 'user');
       final totalUsers = allUsersResponse.length;
-      print('   ✓ Fetched $totalUsers total regular users (role=user) from auth service');
       
       // For Users Dashboard, count based on is_approved field
       // Backend uses is_approved field for user approval workflow:
@@ -270,7 +265,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       try {
         recentUsers = allUsersResponse.where(isRecentUser).length;
       } catch (e) {
-        print('   ⚠️  Could not calculate recent users: $e');
       }
       
       final previousUsers = totalUsers - recentUsers;
@@ -298,14 +292,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           ? ((recentApproved / previousApproved) * 100)
           : (recentApproved > 0 ? 100.0 : 0.0);
       
-      print('   ✓ Total: $totalUsers, Pending (is_approved=false/null): $totalPending, Approved (is_approved=true): $totalApproved');
-      print('   ✓ Total Growth: ${growth.toStringAsFixed(1)}% (recent: $recentUsers, previous: $previousUsers)');
-      print('   ✓ Pending Growth: ${pendingGrowth.toStringAsFixed(1)}% (recent: $recentPending, previous: $previousPending)');
-      print('   ✓ Approved Growth: ${approvedGrowth.toStringAsFixed(1)}% (recent: $recentApproved, previous: $previousApproved)');
-      
       // Get recent pending users for activities
       final recentPendingUsers = pendingUsersList.take(3).toList();
-      print('   ✓ Recent pending users for activity: ${recentPendingUsers.length}');
       
       // Convert to AdminUser format for activities
       final recentUsersForActivity = recentPendingUsers.map((u) {
@@ -332,7 +320,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         'recent': recentUsersForActivity, // Recent pending users for review
       };
     } catch (e) {
-      print('❌ [DASHBOARD_DATA] All users data error: $e');
+      print('[ERROR] [DASHBOARD_DATA] All users data error: $e');
       return {
         'total': 0,
         'growth': 0.0,
@@ -348,7 +336,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       final users = await _usersRepository.getMerchantApplications(limit: 100);
       final totalUsers = users.length;
-      print('   ✓ Fetched $totalUsers merchant applications');
       
       // Calculate overall growth: compare with users from 7 days ago
       final now = DateTime.now();
@@ -378,16 +365,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           ? ((recentApproved / previousApproved) * 100)
           : (recentApproved > 0 ? 100.0 : 0.0);
       
-      print('   ✓ Total Growth: ${growth.toStringAsFixed(1)}%');
-      print('   ✓ Pending ($totalPending): ${pendingGrowth.toStringAsFixed(1)}% (recent: $recentPending, previous: $previousPending)');
-      print('   ✓ Approved ($totalApproved): ${approvedGrowth.toStringAsFixed(1)}% (recent: $recentApproved, previous: $previousApproved)');
-      
       // Get recent pending merchants for activities
       final recentPendingMerchants = pendingMerchants.take(3).toList();
-      print('   ✓ Recent pending applications for activity: ${recentPendingMerchants.length}');
-      for (var i = 0; i < recentPendingMerchants.length; i++) {
-        print('     ${i + 1}. ${recentPendingMerchants[i].name} (${recentPendingMerchants[i].email})');
-      }
       
       return {
         'total': totalUsers,
@@ -398,7 +377,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         'recent': recentPendingMerchants, // Only pending merchants for review
       };
     } catch (e) {
-      print('❌ [DASHBOARD_DATA] Merchant applications data error: $e');
+      print('[ERROR] [DASHBOARD_DATA] Merchant applications data error: $e');
       return {
         'total': 0, 
         'growth': 0.0,
@@ -414,7 +393,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       return await _sessionsRepository.getActiveSessions();
     } catch (e) {
-      print('❌ Dashboard sessions error: $e');
+      print('[ERROR] [DASHBOARD] Sessions error: $e');
       return {
         'activeSessions': 0,
         'growth': 0.0,
@@ -424,10 +403,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
   Future<Map<String, dynamic>> _loadPostsData() async {
     try {
-      print('\n📊 [DASHBOARD_DATA] Loading Posts Data...');
       final posts = await _postsRepository.getPendingSocialPosts();
       final pendingCount = posts.length;
-      print('   ✓ Fetched $pendingCount pending posts');
       
       // Calculate growth based on post age distribution
       // Compare posts from last 7 days vs previous 7 days
@@ -458,9 +435,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       }
       
       final recentPostsList = posts.take(3).toList();
-      print('   ✓ Recent posts for activity: ${recentPostsList.length}');
-      // Skip detailed printing to avoid console encoding issues with emojis
-      // The data is fine, just the Windows console can't display all Unicode characters
       
       return {
         'pending': pendingCount,
@@ -468,21 +442,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         'recent': recentPostsList,
       };
     } catch (e) {
-      print('❌ [DASHBOARD_DATA] Posts data error: $e');
+      print('[ERROR] [DASHBOARD_DATA] Posts data error: $e');
       return {'pending': 0, 'growth': 0.0, 'recent': []};
     }
   }
 
   Future<Map<String, dynamic>> _loadTransactionsData() async {
     try {
-      print('📊 [DASHBOARD] Loading transactions data...');
       final result = await _transactionsRepository.getTransactionsWithAnalytics(limit: 100);
-      print('📊 [DASHBOARD] Result keys: ${result.keys.toList()}');
       
       final analytics = result['analytics'] as Map<String, dynamic>?;
       final transactions = result['transactions'] as List? ?? [];
-      print('📊 [DASHBOARD] Analytics: $analytics');
-      print('📊 [DASHBOARD] Transactions count: ${transactions.length}');
       
       // Get pending and disputed transactions for activities
       final pendingTransactions = transactions.where((t) {
@@ -490,39 +460,25 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         return status == 'pending' || status == 'disputed';
       }).take(3).toList();
       
-      print('📊 [DASHBOARD] Pending/Disputed transactions: ${pendingTransactions.length}');
-      
       if (analytics != null) {
-        print('📊 [DASHBOARD] Analytics keys: ${analytics.keys.toList()}');
-        
         final volumeValue = analytics['totalVolume'];
         final volume = volumeValue is int ? volumeValue.toDouble() : (volumeValue ?? 0.0);
-        print('📊 [DASHBOARD] Volume: $volume');
         
         // Calculate growth from analytics if available
         final growthValue = analytics['volumeGrowth'] ?? analytics['growth'];
-        print('📊 [DASHBOARD] Raw growth value: $growthValue (type: ${growthValue.runtimeType})');
-        
         final growth = growthValue is int ? growthValue.toDouble() : (growthValue ?? 0.0);
-        print('📊 [DASHBOARD] Parsed growth: $growth');
-        
         final finalGrowth = double.parse(growth.toStringAsFixed(1));
-        print('📊 [DASHBOARD] Final growth: $finalGrowth');
         
-        final returnData = {
+        return {
           'volume': volume,
           'growth': finalGrowth,
           'count': analytics['processed'] ?? 0,
           'recent': pendingTransactions,
         };
-        print('📊 [DASHBOARD] Returning: $returnData');
-        return returnData;
       }
-      print('⚠️ [DASHBOARD] Analytics is null, returning defaults');
       return {'volume': 0.0, 'growth': 0.0, 'count': 0, 'recent': []};
-    } catch (e, stackTrace) {
-      print('❌ Dashboard transactions error: $e');
-      print('❌ Stack trace: $stackTrace');
+    } catch (e) {
+      print('[ERROR] [DASHBOARD] Transactions error: $e');
       return {'volume': 0.0, 'growth': 0.0, 'count': 0, 'recent': []};
     }
   }
@@ -543,28 +499,24 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         return status == 'pending' || status == 'scheduled' || n.sentAt == null;
       }).take(3).toList();
       
-      print('📬 [DASHBOARD] Scheduled/Pending notifications: ${scheduledNotifications.length}');
-      
       return {
         'unread': unreadCount,
         'recent': scheduledNotifications,
       };
     } catch (e) {
-      print('❌ [DASHBOARD] Notifications error: $e');
+      print('[ERROR] [DASHBOARD] Notifications error: $e');
       return {'unread': 0, 'recent': []};
     }
   }
 
   Future<Map<String, dynamic>> _loadAdminActivitiesData() async {
     try {
-      print('\n📊 [DASHBOARD_DATA] Loading Admin Activities...');
       final activities = await _adminActivityRepository.getAllRecentActivities(limit: 10);
-      print('   ✓ Fetched ${activities.length} admin activities');
       return {
         'activities': activities,
       };
     } catch (e) {
-      print('❌ [DASHBOARD_DATA] Admin activities error: $e');
+      print('[ERROR] [DASHBOARD_DATA] Admin activities error: $e');
       return {
         'activities': <AdminActivity>[],
       };

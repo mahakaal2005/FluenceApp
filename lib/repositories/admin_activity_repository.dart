@@ -10,8 +10,6 @@ class AdminActivityRepository {
   /// Get recent post verification activities (approvals/rejections)
   Future<List<AdminActivity>> getRecentPostVerifications({int limit = 10}) async {
     try {
-      print('📊 [ADMIN_ACTIVITY] Fetching recent post verifications...');
-      
       final response = await _apiService.get(
         'api/admin/social/activity/recent-verifications?limit=$limit',
         service: ServiceType.social,
@@ -22,13 +20,12 @@ class AdminActivityRepository {
             .map((json) => AdminActivity.fromJson(json))
             .toList();
         
-        print('✅ [ADMIN_ACTIVITY] Fetched ${activities.length} post verification activities');
         return activities;
       }
       
       return [];
     } catch (e) {
-      print('❌ [ADMIN_ACTIVITY] Error fetching post verifications: $e');
+      print('[ERROR] [ADMIN_ACTIVITY] Error fetching post verifications: $e');
       return [];
     }
   }
@@ -36,8 +33,6 @@ class AdminActivityRepository {
   /// Get recent application review activities (approvals/rejections/suspensions)
   Future<List<AdminActivity>> getRecentApplicationReviews({int limit = 10}) async {
     try {
-      print('📊 [ADMIN_ACTIVITY] Fetching recent application reviews...');
-      
       final response = await _apiService.get(
         'api/admin/activity/recent-reviews?limit=$limit',
         service: ServiceType.merchant,
@@ -48,13 +43,12 @@ class AdminActivityRepository {
             .map((json) => AdminActivity.fromJson(json))
             .toList();
         
-        print('✅ [ADMIN_ACTIVITY] Fetched ${activities.length} application review activities');
         return activities;
       }
       
       return [];
     } catch (e) {
-      print('❌ [ADMIN_ACTIVITY] Error fetching application reviews: $e');
+      print('[ERROR] [ADMIN_ACTIVITY] Error fetching application reviews: $e');
       return [];
     }
   }
@@ -62,10 +56,6 @@ class AdminActivityRepository {
   /// Get all recent admin activities (combined)
   Future<List<AdminActivity>> getAllRecentActivities({int limit = 20}) async {
     try {
-      print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      print('📊 [ADMIN_ACTIVITY] Fetching ALL recent admin activities');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
       // Fetch both types of activities in parallel
       final results = await Future.wait([
         getRecentPostVerifications(limit: limit ~/ 2),
@@ -82,15 +72,9 @@ class AdminActivityRepository {
       // Take only the most recent ones up to limit
       final recentActivities = allActivities.take(limit).toList();
 
-      print('\n📋 [ADMIN_ACTIVITY] Activity Summary:');
-      print('   Post verifications: ${postActivities.length}');
-      print('   Application reviews: ${appActivities.length}');
-      print('   Total combined: ${recentActivities.length}');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
       return recentActivities;
     } catch (e) {
-      print('❌ [ADMIN_ACTIVITY] Error fetching all activities: $e');
+      print('[ERROR] [ADMIN_ACTIVITY] Error fetching all activities: $e');
       return [];
     }
   }

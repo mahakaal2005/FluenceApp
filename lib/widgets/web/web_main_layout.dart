@@ -14,7 +14,7 @@ class WebMainLayout extends StatelessWidget {
   final VoidCallback onNotificationTap;
   final VoidCallback onProfileTap;
   
-  WebMainLayout({
+  const WebMainLayout({
     super.key,
     required this.currentIndex,
     required this.onNavigate,
@@ -27,12 +27,6 @@ class WebMainLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ [WebMainLayout] build() called');
-    print('   📊 unreadNotificationCount: $unreadNotificationCount');
-    print('   🔑 Key: ValueKey("top_bar_$unreadNotificationCount")');
-    print('   📍 HashCode: ${hashCode}');
-    print('   📍 Identity: ${hashCode}');
-    
     return Scaffold(
       backgroundColor: WebDesignConstants.webBackground,
       body: Row(

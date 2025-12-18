@@ -48,10 +48,8 @@ class NotificationsRepository {
   Future<List<Map<String, dynamic>>> getSentNotificationsWithStats({
     int page = 1,
     int limit = 10,
-  }) async {
+    }) async {
     try {
-      print('🔍 Fetching sent notifications with stats...');
-      
       final queryParams = <String, String>{
         'limit': limit.toString(),
         'offset': ((page - 1) * limit).toString(),
@@ -61,25 +59,19 @@ class NotificationsRepository {
           .map((e) => '${e.key}=${e.value}')
           .join('&');
       
-      print('🌐 API call: api/notifications/sent-with-stats?$query');
-      
       final response = await _apiService.get(
         'api/notifications/sent-with-stats?$query',
         service: ServiceType.notification,
       );
 
-      print('📡 Response received: ${response['success']}');
-      
       if (response['success'] == true && response['data'] != null) {
         final notifications = response['data']['notifications'] as List;
-        print('✅ Sent notifications fetched: ${notifications.length}');
         return notifications.cast<Map<String, dynamic>>();
       }
       
-      print('⚠️ No sent notifications data in response');
       return [];
     } catch (e) {
-      print('❌ Error fetching sent notifications: $e');
+      print('[ERROR] [NotificationsRepo] Error fetching sent notifications: $e');
       throw Exception('Failed to fetch sent notifications: $e');
     }
   }
@@ -127,8 +119,7 @@ class NotificationsRepository {
       // Handle rate limiting gracefully - return 0 instead of throwing
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('429') || errorStr.contains('too many requests') || errorStr.contains('rate limit')) {
-        print('⚠️ [NotificationsRepo] Rate limited, skipping backend count');
-        return 0; // Return 0 instead of throwing - we'll use calculated count
+        return 0;
       }
       throw Exception('Failed to fetch unread count: $e');
     }

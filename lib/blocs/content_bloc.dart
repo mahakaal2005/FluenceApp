@@ -239,24 +239,19 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       // Only marks notifications RECEIVED by admin (not sent by admin)
       // This updates the badge count to show only truly unseen admin notifications
       try {
-        print('🔄 Calling markAllAsOpened()...');
         await _notificationsRepository.markAllAsOpened();
-        print('✅ Marked all admin notifications as opened');
         
         // Update local state immediately - mark all received notifications as read
-        // This avoids unnecessary API call and rate limiting
         final now = DateTime.now();
         for (var notif in receivedNotifications) {
-          // Only update if it's a received notification (not sent)
           if (notif.status != 'sent') {
-            // Create updated notification with readAt set
             final updatedNotif = NotificationModel(
               id: notif.id,
               type: notif.type,
               title: notif.title,
               message: notif.message,
               status: notif.status,
-              readAt: now, // Mark as read
+              readAt: now,
               createdAt: notif.createdAt,
               sentAt: notif.sentAt,
               metadata: notif.metadata,
@@ -268,19 +263,12 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
             }
           }
         }
-        print('✅ Updated ${receivedNotifications.length} notifications locally (marked as read)');
         
-        // Wait a bit before notifying parent to ensure state is updated
         await Future.delayed(const Duration(milliseconds: 300));
-        
-        // Notify parent to refresh badge count (will recalculate from updated list)
-        print('🔄 Calling onNotificationsViewed callback...');
         onNotificationsViewed?.call();
-        print('✅ Callback called');
       } catch (e) {
         final errorStr = e.toString().toLowerCase();
         if (errorStr.contains('429') || errorStr.contains('too many requests')) {
-          print('⚠️ Rate limited when marking as read, but updated local state anyway');
           // Still update local state even if API call fails
           final now = DateTime.now();
           for (var notif in receivedNotifications) {
@@ -306,8 +294,7 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
           await Future.delayed(const Duration(milliseconds: 300));
           onNotificationsViewed?.call();
         } else {
-          print('⚠️ Failed to mark admin notifications as opened: $e');
-          // Don't fail the entire load if this fails
+          print('[WARNING] [ContentBloc] Failed to mark admin notifications as opened: $e');
         }
       }
       
@@ -327,23 +314,16 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         );
       }).toList();
       
-      print('✅ Converted sent notifications: ${sentNotificationModels.length}');
-      
       // Merge both lists and sort by created date (newest first)
       final allNotifications = <NotificationModel>[...sentNotificationModels, ...receivedNotifications];
       allNotifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
-      print('📋 Total merged notifications: ${allNotifications.length}');
-      
       // Take only the requested limit
       final limitedNotifications = allNotifications.take(event.limit).toList();
       
-      print('✅ Final notifications to display: ${limitedNotifications.length}');
-      
       emit(currentState.copyWith(notifications: limitedNotifications, isLoadingNotifications: false));
-    } catch (e, stackTrace) {
-      print('❌ Failed to load notifications: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
+      print('[ERROR] [ContentBloc] Failed to load notifications: $e');
       emit(currentState.copyWith(isLoadingNotifications: false));
     }
   }
@@ -357,7 +337,7 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       final analytics = await _notificationsRepository.getAnalytics();
       emit(currentState.copyWith(analytics: analytics, isLoadingAnalytics: false));
     } catch (e) {
-      print('Failed to load analytics: $e');
+      print('[ERROR] [ContentBloc] Failed to load analytics: $e');
       emit(currentState.copyWith(isLoadingAnalytics: false));
     }
   }

@@ -96,24 +96,19 @@ class _WebContentScreenState extends State<WebContentScreen> {
       // Only marks notifications RECEIVED by admin (not sent by admin)
       // This updates the badge count to show only truly unseen admin notifications
       try {
-        print('🔄 [WEB] Calling markAllAsOpened()...');
         await _notificationsRepository.markAllAsOpened();
-        print('✅ [WEB] Marked all admin notifications as opened');
         
         // Update local state immediately - mark all received notifications as read
-        // This avoids unnecessary API call and rate limiting
         final now = DateTime.now();
         for (var notif in receivedNotifications) {
-          // Only update if it's a received notification (not sent)
           if (notif.status != 'sent') {
-            // Create updated notification with readAt set
             final updatedNotif = NotificationModel(
               id: notif.id,
               type: notif.type,
               title: notif.title,
               message: notif.message,
               status: notif.status,
-              readAt: now, // Mark as read
+              readAt: now,
               createdAt: notif.createdAt,
               sentAt: notif.sentAt,
               metadata: notif.metadata,
@@ -125,19 +120,12 @@ class _WebContentScreenState extends State<WebContentScreen> {
             }
           }
         }
-        print('✅ [WEB] Updated ${receivedNotifications.length} notifications locally (marked as read)');
         
-        // Wait a bit before notifying parent to ensure state is updated
         await Future.delayed(const Duration(milliseconds: 300));
-        
-        // Notify parent to refresh badge count (will recalculate from updated list)
-        print('🔄 [WEB] Calling onNotificationsViewed callback...');
         widget.onNotificationsViewed?.call();
-        print('✅ [WEB] Callback called');
       } catch (e) {
         final errorStr = e.toString().toLowerCase();
         if (errorStr.contains('429') || errorStr.contains('too many requests')) {
-          print('⚠️ [WEB] Rate limited when marking as read, but updated local state anyway');
           // Still update local state even if API call fails
           final now = DateTime.now();
           for (var notif in receivedNotifications) {
@@ -163,8 +151,7 @@ class _WebContentScreenState extends State<WebContentScreen> {
           await Future.delayed(const Duration(milliseconds: 300));
           widget.onNotificationsViewed?.call();
         } else {
-          print('⚠️ [WEB] Failed to mark admin notifications as opened: $e');
-          // Don't fail the entire load if this fails
+          print('[WARNING] [WEB] Failed to mark admin notifications as opened: $e');
         }
       }
 
@@ -193,7 +180,6 @@ class _WebContentScreenState extends State<WebContentScreen> {
       ];
       allNotifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      print('✅ [WEB] Total notifications: ${allNotifications.length}');
 
       if (mounted) {
         setState(() {
@@ -201,9 +187,8 @@ class _WebContentScreenState extends State<WebContentScreen> {
           _isLoadingNotifications = false;
         });
       }
-    } catch (e, stackTrace) {
-      print('❌ [WEB] Failed to load notifications: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
+      print('[ERROR] [WEB] Failed to load notifications: $e');
       if (mounted) {
         setState(() => _isLoadingNotifications = false);
       }
@@ -1198,7 +1183,6 @@ class _WebContentScreenState extends State<WebContentScreen> {
           // Use date comparison at day level (ignore time)
           final dateOnly = DateTime(date.year, date.month, date.day);
           if (dateOnly.isBefore(startOfWeekDate) || dateOnly.isAfter(endOfWeekDate)) {
-            print('   ⏭️  Skipping ${item['date']} (not in current week: ${startOfWeekDate.toString().split(' ')[0]} to ${endOfWeekDate.toString().split(' ')[0]})');
             continue; // Skip dates outside current week
           }
           
@@ -1213,12 +1197,11 @@ class _WebContentScreenState extends State<WebContentScreen> {
           print('   ✓ ${days[index]}: $count notifications');
         } catch (e) {
           // Skip items with invalid dates
-          print('❌ Error parsing weekly notification date: $e');
+          print('[ERROR] [WEB] Error parsing weekly notification date: $e');
         }
       }
     }
     
-    print('📊 [WEEKLY CHART] Final data: $weeklyData');
 
     // Create bar groups for all 7 days
     final barGroups = <BarChartGroupData>[];

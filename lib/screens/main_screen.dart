@@ -109,67 +109,29 @@ class _MainScreenState extends State<MainScreen> {
   // IMPORTANT: Only count RECEIVED notifications, NOT sent notifications
   Future<void> _loadUnreadCount() async {
     try {
-      print('🔄 [MainScreen] Loading unread count...');
-      
-      // PRIMARY: Calculate from notifications list
+      // Calculate from notifications list
       // Only count RECEIVED notifications (not sent ones)
-      // Sent notifications have status == 'sent' and should NOT be counted
       int calculatedCount = 0;
       try {
         final notifications = await _notificationsRepository.getNotifications(limit: 100);
-        // Filter: Only count RECEIVED notifications that are unread
-        // Exclude sent notifications (status == 'sent')
         final receivedUnreadNotifications = notifications.where((n) {
-          // Only count notifications that:
-          // 1. Are NOT sent by admin (status != 'sent')
-          // 2. Are unread (isRead == false)
           return n.status != 'sent' && !n.isRead;
         }).toList();
         
         calculatedCount = receivedUnreadNotifications.length;
-        print('📊 [MainScreen] Calculated count from notifications list: $calculatedCount');
-        print('   Total notifications loaded: ${notifications.length}');
-        print('   Received notifications: ${notifications.where((n) => n.status != 'sent').length}');
-        print('   Sent notifications (excluded): ${notifications.where((n) => n.status == 'sent').length}');
-        print('   Unread received notifications: ${receivedUnreadNotifications.map((n) => '${n.id}(${n.title})').toList()}');
       } catch (e) {
-        print('⚠️ [MainScreen] Failed to calculate from notifications list: $e');
+        print('[WARNING] [MainScreen] Failed to calculate from notifications list: $e');
       }
       
-      // SECONDARY: Fetch backend count for verification (optional, skip if rate limited)
-      int backendCount = 0;
-      try {
-        backendCount = await _notificationsRepository.getUnreadCount();
-        print('📊 [MainScreen] Backend count: $backendCount');
-      } catch (e) {
-        // Rate limiting is handled gracefully in repository, but log other errors
-        final errorStr = e.toString().toLowerCase();
-        if (!errorStr.contains('429') && !errorStr.contains('too many requests')) {
-          print('⚠️ [MainScreen] Failed to fetch backend count: $e');
-        }
-        // Continue with calculated count even if backend fails
-      }
-      
-      // Use calculated count as primary source (more reliable, doesn't hit rate limits)
       final finalCount = calculatedCount;
-      print('✅ [MainScreen] Using calculated count: $finalCount (backend: $backendCount)');
       
       if (mounted) {
-        print('🔔 [MainScreen] ========== setState() called ==========');
-        print('   📊 OLD _unreadNotificationCount: $_unreadNotificationCount');
-        print('   📊 NEW _unreadNotificationCount: $finalCount');
-        print('   ⚖️ Values equal? ${_unreadNotificationCount == finalCount}');
         setState(() {
           _unreadNotificationCount = finalCount;
-          print('   ✅ Updated _unreadNotificationCount to: $finalCount');
         });
-        print('🔔 [MainScreen] setState() completed - widget should rebuild');
-        print('🔔 [MainScreen] ======================================');
-      } else {
-        print('⚠️ [MainScreen] Widget not mounted, skipping setState()');
       }
     } catch (e) {
-      print('❌ Failed to load unseen notification count: $e');
+      print('[ERROR] [MainScreen] Failed to load unseen notification count: $e');
     }
   }
 
@@ -181,17 +143,8 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('🔔 [MainScreen] ========== build() called ==========');
-    print('   📊 _unreadNotificationCount: $_unreadNotificationCount');
-    print('   📍 State hashCode: ${hashCode}');
-    print('   📍 State identity: ${hashCode}');
-    print('   📍 Context hashCode: ${context.hashCode}');
-    print('🔔 [MainScreen] ===================================');
-    
     // Check if we should show web layout
     if (ResponsiveHelper.shouldShowWebLayout(context)) {
-      print('🔔 [MainScreen] Creating WebMainLayout widget');
-      print('   📊 Passing unreadNotificationCount: $_unreadNotificationCount');
       return WebMainLayout(
         currentIndex: _currentIndex,
         onNavigate: _navigateToTab,

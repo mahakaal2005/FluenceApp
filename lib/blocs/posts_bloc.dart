@@ -159,8 +159,6 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
         return Post.fromSocialPost(socialPost, rawData: postData);
       }).toList();
       
-      print('📊 [POSTS_BLOC] Loaded ${posts.length} total posts');
-      print('   Pending: ${posts.where((p) => p.status == PostStatus.pending).length}');
       print('   Approved: ${posts.where((p) => p.status == PostStatus.approved).length}');
       print('   Rejected: ${posts.where((p) => p.status == PostStatus.rejected).length}');
       

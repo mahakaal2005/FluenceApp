@@ -20,7 +20,6 @@ class ReviewActivityDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🎨 [REVIEW_DIALOG] Building dialog for $entityType with ID: $entityId');
     
     return Dialog(
       backgroundColor: Colors.transparent,

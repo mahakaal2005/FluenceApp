@@ -83,7 +83,6 @@ class NotificationRecipientsBloc extends Bloc<NotificationRecipientsEvent, Notif
     if (state is RecipientsLoaded && !event.forceRefresh) {
       final loadedState = state as RecipientsLoaded;
       if (!loadedState.isCacheExpired) {
-        print('📦 [RECIPIENTS BLOC] Returning cached users (${loadedState.users.length})');
         return;
       }
     }
@@ -91,26 +90,23 @@ class NotificationRecipientsBloc extends Bloc<NotificationRecipientsEvent, Notif
     emit(const RecipientsLoading());
 
     try {
-      print('🔄 [RECIPIENTS BLOC] Fetching users from API...');
       final users = await _usersRepository.getAllUsers(
         limit: 1000,
         role: 'user',
         status: 'active',
       );
 
-      print('✅ [RECIPIENTS BLOC] Loaded ${users.length} users');
       emit(RecipientsLoaded(
         users: users,
         loadedAt: DateTime.now(),
       ));
     } catch (e) {
-      print('❌ [RECIPIENTS BLOC] Error loading users: $e');
+      print('[ERROR] [RECIPIENTS BLOC] Error loading users: $e');
       emit(RecipientsError(e.toString()));
     }
   }
 
   void _onClearCache(ClearRecipientsCache event, Emitter<NotificationRecipientsState> emit) {
-    print('🗑️ [RECIPIENTS BLOC] Clearing cache');
     emit(const RecipientsInitial());
   }
 

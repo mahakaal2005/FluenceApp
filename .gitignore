@@ -49,18 +49,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-
-
-# AI Assistant rules (keep these private)
-.clinerules/byterover-rules.md
-.kilocode/rules/byterover-rules.md
-.roo/rules/byterover-rules.md
-.windsurf/rules/byterover-rules.md
-.cursor/rules/byterover-rules.mdc
-.kiro/steering/byterover-rules.md
-.qoder/rules/byterover-rules.md
-.augment/rules/byterover-rules.md
-
 # Local configuration
 local.properties
 *.jks
@@ -71,9 +59,6 @@ key.properties
 *.db
 *.sqlite
 *.sqlite3
-
-# Temporary AI assistant files
-CLAUDE.md
 
 # Node.js dependencies (for npm scripts)
 node_modules/

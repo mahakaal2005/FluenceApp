@@ -367,7 +367,7 @@ class ActivityFeedBloc extends Bloc<ActivityFeedEvent, ActivityFeedState> {
         ),
       );
     } catch (e) {
-      print('❌ [ACTIVITY_FEED] Error loading activities: $e');
+      print('[ERROR] [ACTIVITY_FEED] Error loading activities: $e');
       emit(ActivityFeedError('Failed to load activities: $e'));
     }
   }
@@ -385,7 +385,7 @@ class ActivityFeedBloc extends Bloc<ActivityFeedEvent, ActivityFeedState> {
 
       return {'recent': recentUsers};
     } catch (e) {
-      print('❌ [ACTIVITY_FEED] Users error: $e');
+      print('[ERROR] [ACTIVITY_FEED] Users error: $e');
       return {'recent': []};
     }
   }
@@ -403,7 +403,7 @@ class ActivityFeedBloc extends Bloc<ActivityFeedEvent, ActivityFeedState> {
 
       return {'recent': recentPosts};
     } catch (e) {
-      print('❌ [ACTIVITY_FEED] Posts error: $e');
+      print('[ERROR] [ACTIVITY_FEED] Posts error: $e');
       return {'recent': []};
     }
   }
@@ -429,7 +429,7 @@ class ActivityFeedBloc extends Bloc<ActivityFeedEvent, ActivityFeedState> {
 
       return {'recent': pendingTransactions};
     } catch (e) {
-      print('❌ [ACTIVITY_FEED] Transactions error: $e');
+      print('[ERROR] [ACTIVITY_FEED] Transactions error: $e');
       return {'recent': []};
     }
   }
@@ -457,7 +457,7 @@ class ActivityFeedBloc extends Bloc<ActivityFeedEvent, ActivityFeedState> {
 
       return {'recent': scheduledNotifications};
     } catch (e) {
-      print('❌ [ACTIVITY_FEED] Notifications error: $e');
+      print('[ERROR] [ACTIVITY_FEED] Notifications error: $e');
       return {'recent': []};
     }
   }
@@ -473,7 +473,7 @@ class ActivityFeedBloc extends Bloc<ActivityFeedEvent, ActivityFeedState> {
 
       return {'activities': activities};
     } catch (e) {
-      print('❌ [ACTIVITY_FEED] Admin activities error: $e');
+      print('[ERROR] [ACTIVITY_FEED] Admin activities error: $e');
       return {'activities': <AdminActivity>[]};
     }
   }

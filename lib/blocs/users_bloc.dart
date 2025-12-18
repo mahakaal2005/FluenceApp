@@ -130,8 +130,6 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       final approved = allUsers.where((u) => u.status == 'approved' || u.status == 'active').toList();
       final suspended = allUsers.where((u) => u.status == 'suspended' || u.status == 'rejected').toList();
 
-      print('📊 [USERS] Loaded summary:');
-      print('   Regular users: ${regularUsers.length}');
       print('   Merchants: ${merchants.length}');
       print('   Total: ${allUsers.length}');
       print('   Pending: ${pending.length}');
@@ -145,7 +143,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
         suspendedUsers: suspended,
       ));
     } catch (e) {
-      print('❌ [USERS] Error loading users: $e');
+      print('[ERROR] [USERS] Error loading users: $e');
       emit(UsersError(e.toString()));
     }
   }
@@ -172,7 +170,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       emit(const UserActionSuccess('User approved successfully'));
       add(const LoadUsers()); // Reload users
     } catch (e) {
-      print('❌ [USERS] Error approving user: $e');
+      print('[ERROR] [USERS] Error approving user: $e');
       emit(UsersError(e.toString()));
     }
   }
@@ -199,7 +197,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       emit(const UserActionSuccess('User rejected successfully'));
       add(const LoadUsers()); // Reload users
     } catch (e) {
-      print('❌ [USERS] Error rejecting user: $e');
+      print('[ERROR] [USERS] Error rejecting user: $e');
       emit(UsersError(e.toString()));
     }
   }
@@ -229,7 +227,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
         add(const LoadUsers()); // Reload users
       }
     } catch (e) {
-      print('❌ [USERS] Error suspending user: $e');
+      print('[ERROR] [USERS] Error suspending user: $e');
       emit(UsersError(e.toString()));
     }
   }

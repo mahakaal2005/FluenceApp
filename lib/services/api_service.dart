@@ -16,24 +16,21 @@ enum ServiceType {
 
 /// API Service for handling HTTP requests to multiple microservices
 class ApiService {
-  // ============================================
-  // 🚀 SMART PLATFORM DETECTION
-  // ============================================
+  // Platform Detection Configuration
   // Automatically detects platform and uses correct URL:
   // - Web: http://localhost (same machine)
   // - Android Emulator: http://10.0.2.2 (host machine)
   // - Android Device: http://192.168.0.180 (local network)
   // - Remote Backend: http://161.248.37.235 (direct port access: 4001-4007)
   // - Production: https://api.fluencepay.com
-  // ============================================
   
   // Remote Backend Configuration (direct port access)
   static const String REMOTE_BACKEND_URL = 'http://161.248.37.235';
-  static const bool USE_REMOTE_BACKEND = true; // 👈 Set to true to use remote backend (with ports)
+  static const bool USE_REMOTE_BACKEND = true;
   
   // Production URL (set this when deploying to production)
   static const String PRODUCTION_URL = 'https://api.fluencepay.com';
-  static const bool USE_PRODUCTION = false; // 👈 Set to true for production
+  static const bool USE_PRODUCTION = false;
   
   // Development URLs (for localhost development)
   static const String WEB_DEV_URL = 'http://localhost';
@@ -45,26 +42,18 @@ class ApiService {
   static String get BASE_URL {
     // Priority 1: Remote Backend (direct port access)
     if (USE_REMOTE_BACKEND) {
-      print('🌐 [API] Using REMOTE BACKEND URL: $REMOTE_BACKEND_URL');
-      print('   Note: Using direct port access (4001-4007)');
       return REMOTE_BACKEND_URL;
     }
     
     // Priority 2: Production URL
     if (USE_PRODUCTION) {
-      print('🌐 [API] Using PRODUCTION URL: $PRODUCTION_URL');
       return PRODUCTION_URL;
     }
     
     // Priority 3: Development mode - auto-detect platform
     if (kIsWeb) {
-      // Running on web browser (Chrome, Edge, etc.)
-      print('🌐 [API] Platform: WEB - Using: $WEB_DEV_URL');
       return WEB_DEV_URL;
     } else {
-      // Running on Android/iOS
-      // Note: If using Android Emulator, change ANDROID_DEVICE_URL to ANDROID_EMULATOR_URL above
-      print('🌐 [API] Platform: MOBILE - Using: $ANDROID_DEVICE_URL');
       return ANDROID_DEVICE_URL;
     }
   }
@@ -110,29 +99,16 @@ class ApiService {
       final cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
       final fullUrl = '$baseUrl/$cleanEndpoint';
       
-      print('🌐 [API] GET Request');
-      print('   URL: $fullUrl');
-      print('   Service: $service');
-      print('   Endpoint: $cleanEndpoint');
-      
       final headers = await _getHeaders();
-      print('   Headers: ${headers.keys.toList()}');
       
       final response = await _client.get(
         Uri.parse(fullUrl),
         headers: headers,
       ).timeout(const Duration(seconds: 30));
       
-      print('✅ [API] Response received');
-      print('   Status: ${response.statusCode}');
-      print('   Body length: ${response.body.length}');
-      print('   Body: ${response.body}');
-      
       return _handleResponse(response, endpoint: cleanEndpoint);
     } catch (e) {
-      print('❌ [API] GET Request failed: $e');
-      print('   Error type: ${e.runtimeType}');
-      print('   Error details: ${e.toString()}');
+      print('[ERROR] [API] GET Request failed: $e');
       
       // Provide more detailed error information for web CORS/SSL issues
       final errorString = e.toString().toLowerCase();
@@ -140,12 +116,7 @@ class ApiService {
           errorString.contains('cors') ||
           errorString.contains('network') ||
           errorString.contains('socketexception')) {
-        print('⚠️ [API] This looks like a CORS or network connectivity issue.');
-        print('   Possible causes:');
-        print('   1. CORS not configured on backend - Backend needs to allow your origin');
-        print('   2. SSL certificate issue - Backend may be using self-signed certificate');
-        print('   3. Network connectivity - Server may not be reachable');
-        print('   Check browser console (F12) for more details');
+        print('[WARNING] [API] CORS or network connectivity issue detected');
       }
       
       throw _handleError(e);
@@ -164,13 +135,7 @@ class ApiService {
       final cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
       final fullUrl = '$baseUrl/$cleanEndpoint';
       
-      print('🌐 [API] POST Request');
-      print('   URL: $fullUrl');
-      print('   Service: $service');
-      print('   Endpoint: $cleanEndpoint');
-      
       final headers = await _getHeaders();
-      print('   Headers: ${headers.keys.toList()}');
       
       final response = await _client.post(
         Uri.parse(fullUrl),
@@ -178,16 +143,9 @@ class ApiService {
         body: jsonEncode(data),
       ).timeout(const Duration(seconds: 30));
       
-      print('✅ [API] Response received');
-      print('   Status: ${response.statusCode}');
-      print('   Body length: ${response.body.length}');
-      print('   Body: ${response.body}');
-      
       return _handleResponse(response, endpoint: cleanEndpoint);
     } catch (e) {
-      print('❌ [API] POST Request failed: $e');
-      print('   Error type: ${e.runtimeType}');
-      print('   Error details: ${e.toString()}');
+      print('[ERROR] [API] POST Request failed: $e');
       
       // Provide more detailed error information for web CORS/SSL issues
       final errorString = e.toString().toLowerCase();
@@ -195,12 +153,7 @@ class ApiService {
           errorString.contains('cors') ||
           errorString.contains('network') ||
           errorString.contains('socketexception')) {
-        print('⚠️ [API] This looks like a CORS or network connectivity issue.');
-        print('   Possible causes:');
-        print('   1. CORS not configured on backend - Backend needs to allow your origin');
-        print('   2. SSL certificate issue - Backend may be using self-signed certificate');
-        print('   3. Network connectivity - Server may not be reachable');
-        print('   Check browser console (F12) for more details');
+        print('[WARNING] [API] CORS or network connectivity issue detected');
       }
       
       throw _handleError(e);

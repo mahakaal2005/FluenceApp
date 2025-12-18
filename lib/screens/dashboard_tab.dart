@@ -556,7 +556,6 @@ class _DashboardTabState extends State<DashboardTab> {
               
               return TextButton(
                 onPressed: () {
-                  print('🎯 [REVIEW_BUTTON] Button clicked!');
                   _handleReviewNavigation(activity);
                 },
                 style: TextButton.styleFrom(
@@ -585,8 +584,6 @@ class _DashboardTabState extends State<DashboardTab> {
   }
 
   void _handleReviewNavigation(RecentActivity activity) {
-    print('🔍 [REVIEW_NAVIGATION] Handling review navigation...');
-    print('   Entity ID: ${activity.entityId}');
     print('   Entity Type: ${activity.entityType}');
     print('   Status: ${activity.status}');
     
@@ -594,7 +591,6 @@ class _DashboardTabState extends State<DashboardTab> {
     final entityId = activity.entityId;
     
     if (entityType == null || entityId == null) {
-      print('   ⚠️  Missing entityType or entityId, defaulting to Users tab');
       widget.onNavigateToTab?.call(1);
       return;
     }
@@ -627,7 +623,6 @@ class _DashboardTabState extends State<DashboardTab> {
         
       default:
         // Default to Users tab for unknown entity types
-        print('   ⚠️  Unknown entityType: $entityType, defaulting to Users tab');
         widget.onNavigateToTab?.call(1);
         break;
     }

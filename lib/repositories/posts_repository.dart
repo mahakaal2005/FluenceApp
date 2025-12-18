@@ -20,11 +20,6 @@ class PostsRepository {
     String? search,
   }) async {
     try {
-      print('📝 [POSTS] Fetching all posts...');
-      print('   Service: social');
-      print('   Endpoint: api/admin/social/posts');
-      print('   Filters: status=$status, limit=$limit, offset=$offset');
-      
       // Build query parameters
       final queryParams = <String, String>{
         'limit': limit.toString(),
@@ -50,57 +45,32 @@ class PostsRepository {
         service: ServiceType.social,
       );
 
-      print('✅ [POSTS] Response received');
-      print('   Success: ${response['success']}');
-      print('   Has data: ${response['data'] != null}');
-      
       if (response['success'] == true && response['data'] != null) {
-        print('   Response structure: ${response.keys.toList()}');
-        
         // Check if data has posts array
         if (response['data'] is Map && response['data']['posts'] != null) {
           final posts = response['data']['posts'] as List;
-          final pagination = response['data']['pagination'];
-          print('   Posts found: ${posts.length}');
-          print('   Total posts: ${pagination?['total'] ?? 'unknown'}');
           
           // Filter out posts without original_transaction_id
           final validPosts = posts.where((post) {
-            final hasTransactionId = post['original_transaction_id'] != null;
-            if (!hasTransactionId) {
-              print('   ⚠️ Filtering out post ${post['id']} - missing transaction ID');
-            }
-            return hasTransactionId;
+            return post['original_transaction_id'] != null;
           }).toList();
           
-          print('   Valid posts (with transaction ID): ${validPosts.length}');
-          if (validPosts.isNotEmpty) {
-            print('   First post keys: ${validPosts[0].keys.toList()}');
-            print('   First post status: ${validPosts[0]['status']}');
-          }
           return validPosts.map((post) => post as Map<String, dynamic>).toList();
         } else if (response['data'] is List) {
           final posts = response['data'] as List;
-          print('   Posts found (direct array): ${posts.length}');
           
           // Filter out posts without original_transaction_id
           final validPosts = posts.where((post) {
-            final hasTransactionId = post['original_transaction_id'] != null;
-            if (!hasTransactionId) {
-              print('   ⚠️ Filtering out post ${post['id']} - missing transaction ID');
-            }
-            return hasTransactionId;
+            return post['original_transaction_id'] != null;
           }).toList();
           
-          print('   Valid posts (with transaction ID): ${validPosts.length}');
           return validPosts.map((post) => post as Map<String, dynamic>).toList();
         }
       }
       
-      print('⚠️ [POSTS] No posts found, returning empty list');
       return [];
     } catch (e) {
-      print('❌ [POSTS] Error: $e');
+      print('[ERROR] [POSTS] Error: $e');
       throw Exception('Failed to fetch posts: $e');
     }
   }
@@ -133,7 +103,6 @@ class PostsRepository {
   // Verify/approve a social media post
   Future<void> verifySocialPost(String postId, {String? notes}) async {
     try {
-      print('✅ [POSTS] Approving post: $postId');
       await _apiService.post(
         'api/admin/social/posts/$postId/approve',
         {
@@ -141,9 +110,8 @@ class PostsRepository {
         },
         service: ServiceType.social,
       );
-      print('✅ [POSTS] Post approved successfully');
     } catch (e) {
-      print('❌ [POSTS] Approve failed: $e');
+      print('[ERROR] [POSTS] Approve failed: $e');
       throw Exception('Failed to verify post: $e');
     }
   }
@@ -151,7 +119,6 @@ class PostsRepository {
   // Reject a social media post
   Future<void> rejectSocialPost(String postId, String reason) async {
     try {
-      print('❌ [POSTS] Rejecting post: $postId');
       await _apiService.post(
         'api/admin/social/posts/$postId/reject',
         {
@@ -160,9 +127,8 @@ class PostsRepository {
         },
         service: ServiceType.social,
       );
-      print('✅ [POSTS] Post rejected successfully');
     } catch (e) {
-      print('❌ [POSTS] Reject failed: $e');
+      print('[ERROR] [POSTS] Reject failed: $e');
       throw Exception('Failed to reject post: $e');
     }
   }
