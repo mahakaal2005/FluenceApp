@@ -224,7 +224,7 @@ Before you begin, ensure you have the following installed:
 
 ### Backend Requirements
 
-The admin panel requires the Fluence Pay backend microservices to be running. See the [Backend Repository](https://github.com/your-org/fluence-backend) for setup instructions.
+The admin panel requires the Fluence Pay backend microservices to be running. See the [Backend Repository](https://github.com/Parth27904/Fluence-Backend-Private) for setup instructions.
 
 **Required Services:**
 - Auth Service (Port 4001)
@@ -770,7 +770,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Repository**: [GitHub Repository](https://github.com/your-org/fluence-admin-panel)
 - **Issues**: [GitHub Issues](https://github.com/your-org/fluence-admin-panel/issues)
 - **Documentation**: [Full Documentation](https://docs.fluencepay.com/admin)
-- **Backend Docs**: [Backend Repository](https://github.com/your-org/fluence-backend)
+- **Backend Docs**: [Backend Repository](https://github.com/Parth27904/Fluence-Backend-Private)
 
 ---
 
